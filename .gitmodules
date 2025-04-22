@@ -1,0 +1,6 @@
+[submodule "WikipediaHomographData"]
+	path = WikipediaHomographData
+	url = git@github.com:google-research-datasets/WikipediaHomographData.git
+[submodule "llama-hd-dataset"]
+	path = llama-hd-dataset
+	url = git@github.com:facebookresearch/llama-hd-dataset.git
