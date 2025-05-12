@@ -4,7 +4,6 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import torch.nn.functional as F
 
-
 model_name = "bert-base-uncased"
 tokenizer = AutoTokenizer.from_pretrained(model_name)
 model = AutoModel.from_pretrained(model_name)
