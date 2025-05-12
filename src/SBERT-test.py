@@ -2,6 +2,7 @@ import os
 import torch
 import numpy as np
 from sentence_transformers import SentenceTransformer, util
+from sklearn.cluster import KMeans
 
 repo_path = (os.path.abspath(os.path.join("", os.pardir)))
 jaguar_path = os.path.join(repo_path, "Data", "JaguarTestData")
@@ -36,6 +37,7 @@ def retrieve_top_k(query, doc_texts, doc_embeddings, doc_paths, k=3):
     
     return [doc_embeddings[idx] for idx in top_k_indices], [doc_paths[idx] for idx in top_k_indices], [doc_texts[idx] for idx in top_k_indices]
 
+#ALTE NAIVE METHODE
 def diversify_results(embeddings, paths, texts, similarity_threshold=0.8, max_results=10):
     assert len(embeddings) == len(paths) == len(texts)
     
@@ -63,10 +65,55 @@ def diversify_results(embeddings, paths, texts, similarity_threshold=0.8, max_re
 
     return selected_paths, selected_texts
 
-if __name__ == "__main__":
-    documents, paths = load_documents(jaguar_path, hammer_path)
-    doc_embeddings = embed_documents(documents, model)
+def cluster_and_select_top_from_each(query_embedding, doc_embeddings, doc_texts, doc_paths, num_clusters=3):
+    embeddings = torch.stack(doc_embeddings).numpy()
 
-    query = "weapon"
-    top_embeddings, top_paths, top_texts = retrieve_top_k(query, documents, doc_embeddings, paths, k=10)
-    diversify_results(top_embeddings, top_paths, top_texts, similarity_threshold=0.9, max_results=10)
+    kmeans = KMeans(n_clusters=num_clusters, random_state=42, n_init=10)
+    labels = kmeans.fit_predict(embeddings)
+
+    selected = []
+    for cluster_id in range(num_clusters):
+        indices_in_cluster = [i for i, label in enumerate(labels) if label == cluster_id]
+        if not indices_in_cluster:
+            continue
+
+        cluster_embeddings = [doc_embeddings[i] for i in indices_in_cluster]
+        sims = [util.cos_sim(query_embedding, emb).item() for emb in cluster_embeddings]
+        best_idx_in_cluster = indices_in_cluster[np.argmax(sims)]
+
+        cluster_other_paths = [doc_paths[i] for i in indices_in_cluster if i != best_idx_in_cluster]
+
+        selected.append({
+            "path": doc_paths[best_idx_in_cluster],
+            "text": doc_texts[best_idx_in_cluster],
+            "others": cluster_other_paths
+        })
+
+    print(f"\nCluster-Diversified Results (1 per cluster):\n")
+    for item in selected:
+        print(f"{item['path']}\n{item['text']}")
+        if item["others"]:
+            print(f"# Cluster also includes: {', '.join(item['others'])}")
+        print()
+
+    return selected
+
+if __name__ == "__main__":
+   documents, paths = load_documents(jaguar_path, hammer_path)
+   doc_embeddings = embed_documents(documents, model)
+
+   query = "jaguar"
+   top_embeddings, top_paths, top_texts = retrieve_top_k(query, documents, doc_embeddings, paths, k=10)
+
+#   ALTER NAIVER ANSATZ
+#   diversify_results(top_embeddings, top_paths, top_texts, similarity_threshold=0.9, max_results=10)
+
+#   COOLER NEUER ANSATZ
+cluster_and_select_top_from_each(
+    query_embedding=model.encode(query, convert_to_tensor=True),
+    doc_embeddings=top_embeddings,
+    doc_texts=top_texts,
+    doc_paths=top_paths,
+    num_clusters=3
+)
+
