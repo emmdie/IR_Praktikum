@@ -3,8 +3,10 @@ import torch
 import numpy as np
 from sentence_transformers import SentenceTransformer, util
 from sklearn.cluster import KMeans
+from sklearn.cluster import AgglomerativeClustering
 
-repo_path = (os.path.abspath(os.path.join("", os.pardir)))
+script_dir = os.path.dirname(os.path.abspath(__file__))
+repo_path = os.path.abspath(os.path.join(script_dir, ".."))
 jaguar_path = os.path.join(repo_path, "Data", "JaguarTestData")
 hammer_path = os.path.join(repo_path, "Data", "HammerTestData")
 
@@ -98,17 +100,66 @@ def cluster_and_select_top_from_each(query_embedding, doc_embeddings, doc_texts,
 
     return selected
 
+
+def cluster_with_threshold_and_select(query_embedding, doc_embeddings, doc_texts, doc_paths, similarity_threshold=0.75):
+    # Convert to numpy array for clustering
+    embeddings = torch.stack(doc_embeddings).numpy()
+    distance_matrix = 1 - np.inner(embeddings, embeddings)  # cosine distance = 1 - cosine sim
+
+    clustering = AgglomerativeClustering(
+        n_clusters=None,
+        affinity='precomputed',
+        linkage='average',
+        distance_threshold=1 - similarity_threshold
+    ).fit(distance_matrix)
+
+    labels = clustering.labels_
+    num_clusters = max(labels) + 1
+
+    selected = []
+    for cluster_id in range(num_clusters):
+        indices_in_cluster = [i for i, label in enumerate(labels) if label == cluster_id]
+        if not indices_in_cluster:
+            continue
+
+        cluster_embeddings = [doc_embeddings[i] for i in indices_in_cluster]
+        sims = [util.cos_sim(query_embedding, emb).item() for emb in cluster_embeddings]
+        best_idx_in_cluster = indices_in_cluster[np.argmax(sims)]
+
+        cluster_other_paths = [doc_paths[i] for i in indices_in_cluster if i != best_idx_in_cluster]
+
+        selected.append({
+            "path": doc_paths[best_idx_in_cluster],
+            "text": doc_texts[best_idx_in_cluster],
+            "others": cluster_other_paths
+        })
+
+    print(f"\nThreshold-Based Clustered Results (cosine ≥ {similarity_threshold}):\n")
+    for item in selected:
+        print(f"{item['path']}\n{item['text']}")
+        if item["others"]:
+            print(f"# Cluster also includes: {', '.join(item['others'])}")
+        print()
+
+    return selected
+
+
 if __name__ == "__main__":
    documents, paths = load_documents(jaguar_path, hammer_path)
    doc_embeddings = embed_documents(documents, model)
-
    query = "jaguar"
    top_embeddings, top_paths, top_texts = retrieve_top_k(query, documents, doc_embeddings, paths, k=10)
+#   cluster_with_threshold_and_select(
+#        query_embedding=query_embedding,
+#        doc_embeddings=doc_embeddings,
+#        doc_texts=doc_texts,
+#        doc_paths=doc_paths,
+#        similarity_threshold=0.75
+#    )
 
 #   ALTER NAIVER ANSATZ
 #   diversify_results(top_embeddings, top_paths, top_texts, similarity_threshold=0.9, max_results=10)
-
-#   COOLER NEUER ANSATZ
+#   Clustering mit statischer Anzahl
 cluster_and_select_top_from_each(
     query_embedding=model.encode(query, convert_to_tensor=True),
     doc_embeddings=top_embeddings,
@@ -116,4 +167,3 @@ cluster_and_select_top_from_each(
     doc_paths=top_paths,
     num_clusters=3
 )
-
