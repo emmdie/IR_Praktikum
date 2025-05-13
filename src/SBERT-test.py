@@ -12,7 +12,7 @@ hammer_path = os.path.join(repo_path, "Data", "HammerTestData")
 
 model = SentenceTransformer("all-mpnet-base-v2")
 
-def load_documents(*dirs):
+def load_documents(*dirs): #Nimmt beliebig viele Ordner mit txt files
     doc_texts = []
     doc_paths = []
     for dir_path in dirs:
@@ -39,34 +39,7 @@ def retrieve_top_k(query, doc_texts, doc_embeddings, doc_paths, k=3):
     
     return [doc_embeddings[idx] for idx in top_k_indices], [doc_paths[idx] for idx in top_k_indices], [doc_texts[idx] for idx in top_k_indices]
 
-#ALTE NAIVE METHODE
-def diversify_results(embeddings, paths, texts, similarity_threshold=0.8, max_results=10):
-    assert len(embeddings) == len(paths) == len(texts)
-    
-    selected = []
-    selected_paths = []
-    selected_texts = []
-    
-    for i in range(len(embeddings)):
-        if len(selected) == 0:
-            selected.append(embeddings[i])
-            selected_paths.append(paths[i])
-            selected_texts.append(texts[i])
-        else:
-            sims = [util.cos_sim(embeddings[i], e).item() for e in selected]
-            if max(sims) < similarity_threshold:
-                selected.append(embeddings[i])
-                selected_paths.append(paths[i])
-                selected_texts.append(texts[i])
-        if len(selected) >= max_results:
-            break
-    
-    print(f"\nDiversified Top-{max_results} Results:\n")
-    for path, text in zip(selected_paths, selected_texts):
-        print(f"{path}\n{text}\n")
-
-    return selected_paths, selected_texts
-
+#Erstellt statische Anzahl an Clustern, das funktioniert gut
 def cluster_and_select_top_from_each(query_embedding, doc_embeddings, doc_texts, doc_paths, num_clusters=3):
     embeddings = torch.stack(doc_embeddings).numpy()
 
@@ -100,7 +73,7 @@ def cluster_and_select_top_from_each(query_embedding, doc_embeddings, doc_texts,
 
     return selected
 
-
+#Erstellt dynamische Anzahl an Clustern, funktioniert weniger gut
 def cluster_with_threshold_and_select(query_embedding, doc_embeddings, doc_texts, doc_paths, similarity_threshold=0.75):
     # Convert to numpy array for clustering
     embeddings = torch.stack(doc_embeddings).numpy()
@@ -108,7 +81,7 @@ def cluster_with_threshold_and_select(query_embedding, doc_embeddings, doc_texts
 
     clustering = AgglomerativeClustering(
         n_clusters=None,
-        affinity='precomputed',
+        metric='precomputed',
         linkage='average',
         distance_threshold=1 - similarity_threshold
     ).fit(distance_matrix)
@@ -147,23 +120,13 @@ def cluster_with_threshold_and_select(query_embedding, doc_embeddings, doc_texts
 if __name__ == "__main__":
    documents, paths = load_documents(jaguar_path, hammer_path)
    doc_embeddings = embed_documents(documents, model)
-   query = "jaguar"
+   query = "hammer"
+   query_embedding = model.encode(query, convert_to_tensor=True)
    top_embeddings, top_paths, top_texts = retrieve_top_k(query, documents, doc_embeddings, paths, k=10)
-#   cluster_with_threshold_and_select(
-#        query_embedding=query_embedding,
-#        doc_embeddings=doc_embeddings,
-#        doc_texts=doc_texts,
-#        doc_paths=doc_paths,
-#        similarity_threshold=0.75
-#    )
-
-#   ALTER NAIVER ANSATZ
-#   diversify_results(top_embeddings, top_paths, top_texts, similarity_threshold=0.9, max_results=10)
-#   Clustering mit statischer Anzahl
-cluster_and_select_top_from_each(
-    query_embedding=model.encode(query, convert_to_tensor=True),
+cluster_with_threshold_and_select(
+    query_embedding=query_embedding,
     doc_embeddings=top_embeddings,
     doc_texts=top_texts,
     doc_paths=top_paths,
-    num_clusters=3
-)
+    similarity_threshold=0.65
+) 
