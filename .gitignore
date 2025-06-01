@@ -1,2 +1,4 @@
 .venv
 .idea
+
+data/wikipedia/testdata/embedded/*.pkl.gzip
