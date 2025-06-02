@@ -1,3 +1,6 @@
+import pandas as pd
+
+from textual.widget import Widget
 from textual.app import App, ComposeResult
 from textual.widgets import Footer, Header, Button, Digits, Input, Label, Static
 from textual.containers import HorizontalGroup, VerticalScroll, Vertical, Horizontal, Container
@@ -14,7 +17,7 @@ class SearchEngineFrontend(App):
         yield Header()
         yield Footer()
         yield SearchBar()
-        yield VerticalScroll(              
+        yield VerticalScroll(
             ResultField(
                 ranking=1,
                 cluster="A",
@@ -31,14 +34,30 @@ class SearchEngineFrontend(App):
                 ranking=2,
                 cluster="B",
                 doc_id="doc_125",
-                text="This is another very long document content. It may span multiple lines.\nSecond line of content.\nThird line.\nFourth line.\nFifth line."
-            )      
+                text="This is yet another very long document content. Maybe talking about Jaguars. It may span multiple lines.\nSecond line of content.\nThird line.\nFourth line.\nFifth line."
+            ),
+            id="results_container"
         )
 
     def action_toggle_dark(self) -> None:
         """An action to toggle dark mode."""
         self.theme = (
             "textual-dark" if self.theme == "textual-light" else "textual-light")
+
+    def populate_results_from_df(self, df: pd.DataFrame) -> None:
+        results_container: Widget = self.query_one("#results_container")
+        results_container.clear()
+
+        top_rows = df.head(10)
+
+        for _, row in top_rows.iterrows():
+            rf = ResultField(
+                ranking=row["Original ranking"],
+                cluster=str(row["Cluster ID"]),
+                doc_id=str(row["Document ID"]),
+                text=row["Text"]
+            )
+            results_container.mount(rf)
 
 class SearchBar(HorizontalGroup):
     def compose(self) -> ComposeResult:
