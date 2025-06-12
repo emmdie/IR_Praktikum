@@ -128,15 +128,7 @@ def show_doc_texts(docs, search_results):
         print(f"Cluster {cluster}:")
         for doc_id in retrieved_docs:
             print(docs[doc_id].content)
-
-if __name__ == "__main__":
-    ## LOADING
-    doc_collections = ["JaguarTestData", "HammerTestData"]
-
-    # docs: doc_id -> doc_obj
-    # TODO load docs from dataframe
-    docs = create_doc_collection(doc_collections, repo_path)
-
+def sbert_static_load(docs):
     # categories: category -> doc_id
     categories = compute_categories(docs)
 
@@ -148,11 +140,13 @@ if __name__ == "__main__":
 
     # representatives: category -> embedding
     representatives = compute_representatives(docs, clustering)
-    save_representatives_pickle(representatives)
 
     if categories.keys() != representatives.keys():
         print(f"Categories and categories in representatives do not match!")
 
+    save_representatives_pickle(representatives)
+
+def sbert_static_search(docs):
     ## PRE SEARCHING
     representatives_loaded = load_representatives_pickle()
 
@@ -161,4 +155,14 @@ if __name__ == "__main__":
     search_results = search(query, docs, representatives_loaded)
     show_doc_texts(docs, search_results)
 
+if __name__ == "__main__":
+    ## LOADING
+    doc_collections = ["JaguarTestData", "HammerTestData"]
 
+    # docs: doc_id -> doc_obj
+    # TODO load docs from dataframe
+    docs = create_doc_collection(doc_collections, repo_path)
+
+    sbert_static_load(docs)
+
+    sbert_static_search(docs)
