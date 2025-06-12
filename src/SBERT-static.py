@@ -8,6 +8,7 @@ import numpy as np
 from sentence_transformers import SentenceTransformer, util
 from src.clustering_methods import HDBClustering
 import read_files
+from src.saving_and_loading import save_representatives_pickle, load_representatives_pickle
 
 model = SentenceTransformer("all-mpnet-base-v2")
 
@@ -133,6 +134,7 @@ if __name__ == "__main__":
     doc_collections = ["JaguarTestData", "HammerTestData"]
 
     # docs: doc_id -> doc_obj
+    # TODO load docs from dataframe
     docs = create_doc_collection(doc_collections, repo_path)
 
     # categories: category -> doc_id
@@ -146,11 +148,17 @@ if __name__ == "__main__":
 
     # representatives: category -> embedding
     representatives = compute_representatives(docs, clustering)
+    save_representatives_pickle(representatives)
 
     if categories.keys() != representatives.keys():
         print(f"Categories and categories in representatives do not match!")
 
+    ## PRE SEARCHING
+    representatives_loaded = load_representatives_pickle()
+
     ## SEARCHING
     query = "hammer"
-    search_results = search(query, docs, representatives)
+    search_results = search(query, docs, representatives_loaded)
     show_doc_texts(docs, search_results)
+
+
