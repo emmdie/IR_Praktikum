@@ -1,8 +1,6 @@
 .venv
 .idea
-<<<<<<< HEAD
-
-data/wikipedia/testdata/embedded/*.pkl.gzip
-=======
 /**/__pycache__
->>>>>>> 54e4549 (SBERT static base implementation)
+data/wikipedia/testdata/embedded/*.pkl.gzip
+data/test-data-martin
+/src/static_approach/**/*.pkl*

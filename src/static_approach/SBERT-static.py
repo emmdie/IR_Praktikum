@@ -1,14 +1,14 @@
-import os
-import uuid
+import os, sys, uuid
 from collections import defaultdict
-import uuid
-
-import torch
-import numpy as np
+import torch, numpy as np
 from sentence_transformers import SentenceTransformer, util
+
+# Add the parent directory of 'static_approach' to sys.path
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
+
 from src.clustering_methods import HDBClustering
-import read_files
-from src.saving_and_loading import save_representatives_pickle, load_representatives_pickle
+from src.static_approach.saving_and_loading import save_representatives_pickle, load_representatives_pickle
+import src.read_files
 
 model = SentenceTransformer("all-mpnet-base-v2")
 
@@ -34,13 +34,13 @@ class Document:
 # Search for each semantic
 
 script_dir = os.path.dirname(os.path.abspath(__file__))
-repo_path = os.path.abspath(os.path.join(script_dir, "../Data"))
+repo_path = os.path.abspath(os.path.join(script_dir, "../../Data"))
 
 def create_doc_collection(doc_collections, repo_path):
     docs = dict()
     for doc_collection in doc_collections:
         path = os.path.join(repo_path, doc_collection)
-        doc_texts, _ = read_files.load_documents(path)
+        doc_texts, _ = src.read_files.load_documents(path)
         for doc_text in doc_texts:
             doc_obj = Document(doc_collection, doc_text)
             docs[doc_obj.id] = doc_obj
