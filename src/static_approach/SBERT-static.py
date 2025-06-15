@@ -2,6 +2,7 @@ import os, sys, uuid
 from collections import defaultdict
 import torch, numpy as np
 from sentence_transformers import SentenceTransformer, util
+import show
 
 # Add the parent directory of 'static_approach' to sys.path
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
@@ -9,16 +10,18 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '.
 from src.clustering_methods import HDBClustering
 from src.static_approach.saving_and_loading import save_representatives_pickle, load_representatives_pickle
 import src.read_files
+from load_docs import load_doc_data, load_doc_embeddings
+from inverted_index import build_inverted_index
 
 model = SentenceTransformer("all-mpnet-base-v2")
 
 class Document:
 
-    def __init__(self, category, content):
-        self.id = uuid.uuid4()
+    def __init__(self, id, category, embedding, content):
+        self.id = id
         self.category = category
         self.content = content
-        self.embedding = None
+        self.embedding = embedding
         self.label = ""
 
     def __repr__(self):
@@ -34,7 +37,7 @@ class Document:
 # Search for each semantic
 
 script_dir = os.path.dirname(os.path.abspath(__file__))
-repo_path = os.path.abspath(os.path.join(script_dir, "../../Data"))
+repo_path = os.path.abspath(os.path.join(script_dir, "../../data"))
 
 def create_doc_collection(doc_collections, repo_path):
     docs = dict()
@@ -42,16 +45,20 @@ def create_doc_collection(doc_collections, repo_path):
         path = os.path.join(repo_path, doc_collection)
         doc_texts, _ = src.read_files.load_documents(path)
         for doc_text in doc_texts:
-            doc_obj = Document(doc_collection, doc_text)
+            doc_obj = Document(uuid.uuid4(), doc_collection, doc_text)
             docs[doc_obj.id] = doc_obj
     return docs
 
+def create_doc_collection_from_df(df):
+    docs = dict()
+    for i, (index, row) in enumerate(df.iterrows()):
+        doc_obj = Document(row.d_id, row.label, row.embedding, '')
+        if i == 10:
+            break
+    return docs
+
 def compute_categories(docs):
-    category = defaultdict(list)
-    doc_objs = docs.values()
-    for doc in doc_objs:
-        category[doc.category].append(doc.id)
-    return category
+    return build_inverted_index(docs)
 
 def embed(docs, model):
     # Extract the contents from the document dict in insertion order
@@ -66,23 +73,36 @@ def embed(docs, model):
 
     return list(zip([doc.id for doc in docs.values()], embeddings))
 
-def compute_clustering(docs, categories):
+def compute_clustering(df_doc_emb, categories):
     clustering = dict()
-    for category, doc_ids in categories.items():
+    for ctr, (category, doc_ids_in_category) in enumerate(categories.items()):
+        if len(doc_ids_in_category) > 8000:
+            print(f'{ctr:} {category} SKIPPED')
+            continue
+        else:
+            print(f'{ctr:} {category}')
+
         clustering[category] = defaultdict(list)
+        
+        docs_in_category = df_doc_emb.loc[list(doc_ids_in_category)]
+        embeddings = list(map(torch.Tensor, docs_in_category.embedding))
+        if len(embeddings) > 1:
+            num_clusters, clusters = HDBClustering(embeddings)
+        elif len(embeddings) == 1:
+            clusters = [1]
+        else:
+            print(f'No embeddings in this category: {category}')
 
-        doc_objs_in_category = [docs[obj_id] for obj_id in doc_ids]
-        embeddings = [doc.embedding for doc in doc_objs_in_category]
 
-        num_clusters, clusters = HDBClustering(embeddings)
-
-        if len(clusters) != len(doc_objs_in_category):
+        if len(clusters) != len(doc_ids_in_category):
             print(f"Length of labels does not match the number of documents in category '{category}'")
             continue
 
-        for doc_obj, cluster in zip(doc_objs_in_category, clusters):
-            doc_obj.label = cluster
-            clustering[category][cluster].append(doc_obj.id)
+        for doc_id, cluster in zip(doc_ids_in_category, clusters):
+            clustering[category][cluster].append(doc_id)
+
+        # if ctr == 10:
+        #     return clustering
 
     return clustering
 
@@ -90,13 +110,15 @@ def compute_clustering(docs, categories):
 def compute_representatives(docs, clustering):
     representatives = dict()
     for category in clustering:
+        
         representatives[category] = dict()
         clusters = clustering[category]
         for cluster in clusters:
             embeddings_in_cluster = [docs[doc_id].embedding for doc_id in clustering[category][cluster]]
             centroid = np.mean(embeddings_in_cluster, axis=0)
             representatives[category][cluster] = centroid
-    return representatives
+
+        return representatives
 
 def find_category(query, categories):
     matching_categories = [category for category in categories if query.lower() in category.lower()]
@@ -128,12 +150,10 @@ def show_doc_texts(docs, search_results):
         print(f"Cluster {cluster}:")
         for doc_id in retrieved_docs:
             print(docs[doc_id].content)
+
 def sbert_static_load(docs):
     # categories: category -> doc_id
     categories = compute_categories(docs)
-
-    # compute embedding of each doc and attach to corresponding doc_obj
-    embeddings = embed(docs, model)
 
     # clustering: category -> cluster -> doc_id
     clustering = compute_clustering(docs, categories)
@@ -157,12 +177,42 @@ def sbert_static_search(docs):
 
 if __name__ == "__main__":
     ## LOADING
-    doc_collections = ["JaguarTestData", "HammerTestData"]
+    df_doc_data = load_doc_data()
+    df_doc_emb = load_doc_embeddings()
+
+    df_doc_data = df_doc_data.sample(frac=1)
+
+    # df_doc_data = df_doc_data.loc[list(df_doc_emb.index)]
+
+    print(f'Length as list (data): {len(list(df_doc_data.index))}')
+    print(f'Length as set (data): {len(set(df_doc_data.index))}')
+
+    print(f'Length as list (emb): {len(list(df_doc_emb.index))}')
+    print(f'Length as set (emb): {len(set(df_doc_emb.index))}')
+
+    print(f'doc_ids equal: {set(df_doc_emb.index) == (set(df_doc_data.index))}')
+
+
+    print(df_doc_data)
+    print(df_doc_emb)
+
+    # print(df_doc_data[df_doc_data.index.duplicated(keep=False)].sort_values(by='label'))
+    # print(df_doc_emb[df_doc_emb.index.isna()])
+    # nan = df_doc_emb[df_doc_emb['label'].isna()]
+
+    categories = compute_categories(df_doc_data)
+
+    # show.highest_doc_freq(categories)
+
+    clustering = compute_clustering(df_doc_emb, categories)
+    
+    # TODO get overview of cluster sizes and doc_frequencies
+    # TODO compute representatives
 
     # docs: doc_id -> doc_obj
     # TODO load docs from dataframe
-    docs = create_doc_collection(doc_collections, repo_path)
+    # docs = create_doc_collection(doc_collections, repo_path)
 
-    sbert_static_load(docs)
+    # sbert_static_load(docs)
 
-    sbert_static_search(docs)
+    # sbert_static_search(docs)
