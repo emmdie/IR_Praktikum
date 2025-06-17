@@ -1,11 +1,13 @@
 from typing import Dict, List
 import pandas as pd
 
+from textual import on
 from textual.widget import Widget
+from textual.widgets import Select
 from textual.app import App, ComposeResult
-from textual.widgets import Footer, Header, Button, Digits, Input, Label, Static
-from textual.containers import HorizontalGroup, VerticalScroll, Vertical, Horizontal, Container
-from textual.reactive import reactive
+from textual.widgets import Footer, Header, Button, Input, Label, Static
+from textual.containers import HorizontalGroup, VerticalScroll, Vertical, Container
+
 from rich.text import Text
 from textual.message import Message
 
@@ -65,16 +67,25 @@ class SearchEngineFrontend(App):
         results_container: Widget = self.query_one("#results_container")
         for child in results_container.children:
             child.remove()
-        
+
+LINES = """Lama
+SBERT
+Colbert""".splitlines()
+
 class SearchBar(HorizontalGroup):
     def compose(self) -> ComposeResult:
         yield Input(placeholder="Enter search term...", id="search_input", classes="search_input")
         yield Button("Search 🔎", id="start", variant="success")
+        yield Select((line, line) for line in LINES)
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
         if event.button.id == "start":
             query_input = self.query_one("#search_input", Input)
             self.post_message(SearchTriggered(self, query_input.value))
+    
+    @on(Select.Changed)
+    def select_changed(self, event: Select.Changed) -> None:
+        self.title = str(event.value)
 
 class ResultField(Vertical):
     def __init__(self, ranking: int, cluster: str, doc_id: str, text: str) -> None:
