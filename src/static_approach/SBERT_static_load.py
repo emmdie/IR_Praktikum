@@ -10,10 +10,28 @@ from saving_and_loading import save_pickle
 from load_docs import load_doc_data, load_doc_embeddings
 
 def compute_categories(docs):
+    """
+    Build an inverted index mapping each category to its associated document IDs.
+    
+    Args:
+        docs (pd.DataFrame): DataFrame containing document metadata, including categories.
+    
+    Returns:
+        dict: A mapping from category names to lists of document IDs.
+    """
     return build_inverted_index(docs)
 
 def compute_clustering(df_doc_emb, categories):
-        
+    """
+    Cluster documents within each category using HDBSCAN, skipping very large categories.
+    
+    Args:
+        df_doc_emb (pd.DataFrame): DataFrame containing SBERT embeddings indexed by document ID.
+        categories (dict): Mapping from category to list of document IDs.
+    
+    Returns:
+        dict: Mapping of category → cluster label → list of document IDs.
+    """
     clustering = dict()
     for ctr, (category, doc_ids_in_category) in enumerate(categories.items()):
         clustering[category] = defaultdict(list)
@@ -54,6 +72,16 @@ def compute_clustering(df_doc_emb, categories):
 
 # in each category set centroid as representative for each cluster
 def compute_representatives(df_doc_emb, clustering):
+    """
+    Compute centroid embedding for each cluster to use as its semantic representative.
+    
+    Args:
+        df_doc_emb (pd.DataFrame): DataFrame of document embeddings.
+        clustering (dict): Mapping from category to clusters of document IDs.
+    
+    Returns:
+        dict: Mapping from category → cluster → centroid embedding (as numpy array).
+    """
     representatives = dict()
     for category in clustering:
         
@@ -67,25 +95,28 @@ def compute_representatives(df_doc_emb, clustering):
     return representatives
 
 def sbert_static_load(df_doc_data : pd.DataFrame, df_doc_emb : pd.DataFrame) -> None:
+    """
+    Executes the static loading pipeline:
+    - Creates categories by building inverted index
+    - Clusters documents in each category
+    - Computes centroid representatives
+    - Saves the representatives to disk
+    """
     print('Starting loading phase')   
     
-    # categories: category -> [doc_id]
+    # 1: Build inverted index: category → [doc_ids]
     categories = compute_categories(df_doc_data)
 
-    # clustering: category -> cluster -> [doc_id]
+    # 2: Cluster documents within each category
     clustering = compute_clustering(df_doc_emb, categories)
 
-    # print('Saving/loading clustering')
-    # save_pickle(clustering, "clustering.pkl")
-    # clustering = load_pickle("clustering.pkl")
-    # print('Finished saving/loading clustering')
-
-    # representatives: category -> cluster_label -> embedding
+    # 3: Compute representative (centroid) embeddings per cluster
     representatives = compute_representatives(df_doc_emb, clustering)
 
     if clustering.keys() != representatives.keys():
         print(f"Categories and categories in representatives do not match!")
         
+    # 4: Persist representatives
     save_pickle(representatives)
 
     print('Loading Phase finished')

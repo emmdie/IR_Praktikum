@@ -1,19 +1,46 @@
-import torch, pandas as pd
+import torch
+import pandas as pd
 from sentence_transformers import util
+from typing import Dict, List, Any
+
 from saving_and_loading import load_pickle
 from load_docs import load_doc_data, load_doc_embeddings
 
+
 # currently exact match
-def find_category(query, categories):
+def find_category(query: str, categories: Any) -> str:
+    """
+    Determine the matching category for a query.
+    For now, exact matching is used.
+    """
     return query
 
-def retrieve_top_k(query_embedding, doc_embeddings, doc_ids, k=3):
+def retrieve_top_k(
+    query_embedding: torch.Tensor,
+    doc_embeddings: List[torch.Tensor],
+    doc_ids: List[str],
+    k: int = 3
+) -> List[str]:
+    """
+    Retrieve top-k most similar document IDs based on cosine similarity.
+    """
     doc_embeddings = torch.stack(doc_embeddings)
     cos_scores = util.cos_sim(query_embedding, doc_embeddings)[0]
     top_k_indices = torch.topk(cos_scores, k=k).indices
     return [doc_ids[i] for i in top_k_indices]
 
-def search(query, df_doc_emb, representatives, k=3):
+def search(
+    query: str,
+    df_doc_emb: pd.DataFrame,
+    representatives: Dict[str, Dict[int, Any]],
+    k: int = 3
+) -> pd.DataFrame:
+    """
+    Run semantic search over clustered document embeddings.
+
+    Returns:
+        A DataFrame containing matched document IDs, their category, and cluster label.
+    """
     category = find_category(query, representatives.keys())
     query_semantics = representatives[category]
     
@@ -36,10 +63,21 @@ def search(query, df_doc_emb, representatives, k=3):
     # TODO initial Ordering
     return results_df
 
-def add_doc_texts(results_df : pd.DataFrame, df_doc_data : pd.DataFrame) -> pd.DataFrame:
+def add_doc_texts(results_df: pd.DataFrame, df_doc_data: pd.DataFrame) -> pd.DataFrame:
+    """
+    Join the result DataFrame with the document texts based on the document ID.
+    """
     return results_df.join(df_doc_data.text)
 
-def sbert_static_search(df_doc_data : pd.DataFrame, df_doc_emb : pd.DataFrame) -> pd.DataFrame:
+def sbert_static_search(df_doc_data: pd.DataFrame, df_doc_emb: pd.DataFrame) -> pd.DataFrame:
+    """
+    Execute the static SBERT-based semantic search.
+
+    Steps:
+    - Load precomputed semantic cluster representatives
+    - Run semantic search
+    - Join document texts
+    """
     # LOADING
     print('SEARCHING...')
     print('Loading semnatics...')
