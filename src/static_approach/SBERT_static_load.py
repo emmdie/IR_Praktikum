@@ -1,12 +1,13 @@
 import os, sys
 from collections import defaultdict
-import torch, numpy as np
+import torch, numpy as np, pandas as pd
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
 
 from inverted_index import build_inverted_index
 from src.clustering_methods import HDBClustering
 from saving_and_loading import save_pickle
+from load_docs import load_doc_data, load_doc_embeddings
 
 def compute_categories(docs):
     return build_inverted_index(docs)
@@ -65,7 +66,7 @@ def compute_representatives(df_doc_emb, clustering):
 
     return representatives
 
-def sbert_static_load(df_doc_data, df_doc_emb):
+def sbert_static_load(df_doc_data : pd.DataFrame, df_doc_emb : pd.DataFrame) -> None:
     print('Starting loading phase')   
     
     # categories: category -> [doc_id]
@@ -92,4 +93,9 @@ def sbert_static_load(df_doc_data, df_doc_emb):
 
 if __name__ == "__main__":
 
-    sbert_static_load()
+    df_doc_data = load_doc_data()
+    df_doc_emb = load_doc_embeddings()
+
+    print('Finished loading data')
+
+    sbert_static_load(df_doc_data, df_doc_emb)

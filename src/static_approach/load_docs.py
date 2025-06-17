@@ -8,7 +8,7 @@ def get_categories_from_filenames(pickle_files):
 
     file_names = [os.path.basename(file) for file in pickle_files]
 
-    category_names = [ re.sub(r'.pkl.gzip$', r'', name) for name in file_names]
+    category_names = [re.sub(r'.pkl.gzip$', r'', name) for name in file_names]
 
     return category_names
 

@@ -34,3 +34,12 @@ def histogram(value_list, title='Title', x_label='x_label', y_label='y_label'):
     plt.grid(True)
     plt.tight_layout()
     plt.show()
+
+def doc_texts_clusterwise(search_results_df : pd.DataFrame):
+    search_results = {cluster: data for cluster, data in search_results_df.groupby('cluster')}
+    for cluster, retrieved_docs in search_results.items():
+        print(f"Cluster {cluster}:")
+        for doc_id in retrieved_docs.index:
+            # DUPLICATES NOT SHOWN AT THE MOMENT
+            # print(search_results_df.loc[doc_id].text)
+            print(search_results_df.loc[[doc_id]].iloc[0].text)
