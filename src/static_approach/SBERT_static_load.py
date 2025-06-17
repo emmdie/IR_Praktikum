@@ -1,7 +1,12 @@
-import os, sys
+import os
+import sys
+import torch
+import numpy as np
+import pandas as pd
 from collections import defaultdict
-import torch, numpy as np, pandas as pd
+from typing import Dict, List
 
+# Add project root to sys.path
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
 
 from inverted_index import build_inverted_index
@@ -9,7 +14,7 @@ from src.clustering_methods import HDBClustering
 from saving_and_loading import save_pickle
 from load_docs import load_doc_data, load_doc_embeddings
 
-def compute_categories(docs):
+def compute_categories(docs: pd.DataFrame) -> Dict[str, List[str]]:
     """
     Build an inverted index mapping each category to its associated document IDs.
     
@@ -21,7 +26,7 @@ def compute_categories(docs):
     """
     return build_inverted_index(docs)
 
-def compute_clustering(df_doc_emb, categories):
+def compute_clustering(df_doc_emb: pd.DataFrame, categories: Dict[str, List[str]]) -> Dict[str, Dict[int, List[str]]]:
     """
     Cluster documents within each category using HDBSCAN, skipping very large categories.
     
@@ -57,7 +62,6 @@ def compute_clustering(df_doc_emb, categories):
         else:
             print(f'No embeddings in this category: {category}')
 
-
         if len(clusters) != len(doc_ids_in_category):
             print(f"Length of labels does not match the number of documents in category '{category}'")
             continue
@@ -70,8 +74,10 @@ def compute_clustering(df_doc_emb, categories):
 
     return clustering
 
-# in each category set centroid as representative for each cluster
-def compute_representatives(df_doc_emb, clustering):
+def compute_representatives(
+    df_doc_emb: pd.DataFrame,
+    clustering: Dict[str, Dict[int, List[str]]]
+) -> Dict[str, Dict[int, np.ndarray]]:
     """
     Compute centroid embedding for each cluster to use as its semantic representative.
     
@@ -94,7 +100,7 @@ def compute_representatives(df_doc_emb, clustering):
 
     return representatives
 
-def sbert_static_load(df_doc_data : pd.DataFrame, df_doc_emb : pd.DataFrame) -> None:
+def sbert_static_load(df_doc_data: pd.DataFrame, df_doc_emb: pd.DataFrame) -> None:
     """
     Executes the static loading pipeline:
     - Creates categories by building inverted index
