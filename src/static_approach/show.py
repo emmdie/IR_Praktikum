@@ -21,16 +21,16 @@ def highest_doc_freq(index):
     plt.tight_layout()
     plt.show()
 
-def histogram(value_list, distribution, x_label, y_label):
+def histogram(value_list, title='Title', x_label='x_label', y_label='y_label'):
     # Step 1: Convert the inverted index to a list of document list lengths
     term_lengths = value_list #[len(docs) for docs in index.values()]
 
     # Step 2: Plot histogram
     plt.figure(figsize=(10, 6))
     plt.hist(term_lengths, bins=50, color='skyblue', edgecolor='black')
-    plt.title('Distribution of Document Frequencies per Term')
-    plt.xlabel('Number of Documents a Term Appears In')
-    plt.ylabel('Number of Terms')
+    plt.title(title)
+    plt.xlabel(x_label)
+    plt.ylabel(y_label)
     plt.grid(True)
     plt.tight_layout()
     plt.show()

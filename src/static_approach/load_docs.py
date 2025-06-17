@@ -44,6 +44,8 @@ def load_doc_data(path='../../data/wikipedia/testdata/raw'):
 
     combined_df = pd.concat(df_list)
 
+    combined_df = combined_df[~combined_df.index.duplicated(keep='first')]
+
     return combined_df
 
 if __name__ == "__main__":

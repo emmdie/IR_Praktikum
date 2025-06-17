@@ -31,6 +31,9 @@ def HDBClustering(doc_embeddings, min_cluster_size=2):
     # Convert to numpy array for clustering
     embeddings = torch.stack(doc_embeddings).numpy()
 
+    # min cluster size is no less then two
+    min_cluster_size = max(2, min_cluster_size)
+
     # Cluster using HDBScan
     clusterer = HDBSCAN(metric='cosine', min_cluster_size=min_cluster_size, min_samples=1)
     clusterer.fit(embeddings)
