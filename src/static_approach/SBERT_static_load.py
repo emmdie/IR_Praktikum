@@ -37,11 +37,12 @@ def compute_clustering(df_doc_emb: pd.DataFrame, categories: Dict[str, Set[str]]
     Returns:
         dict: Mapping of category → cluster label → list of document IDs.
     """
-    clustering = dict()
+    # clustering = dict()
+    representatives = dict()
     for ctr, (category, doc_ids_in_category) in enumerate(categories.items()):
-        clustering[category] = defaultdict(list)
+        # clustering[category] = defaultdict(list)
 
-
+        # Skip words with posting lists, too long for local processing
         if len(doc_ids_in_category) > 8000:
             print(f'{ctr:} {category} SKIPPED')
             continue
@@ -49,30 +50,55 @@ def compute_clustering(df_doc_emb: pd.DataFrame, categories: Dict[str, Set[str]]
             print(f'{ctr:} {category}')
 
         docs_in_category = df_doc_emb.loc[list(doc_ids_in_category)]
-        embeddings = list(map(torch.Tensor, docs_in_category.embedding))
+        embeddings = list(docs_in_category.embedding)
+        representatives[category] = {label: embedding for label, embedding in enumerate(embeddings)}
         
         # min_cluster_size * num_clusters  = len(doc_ids_in_category)
-        max_num_clusters = len(doc_ids_in_category) # 10 # maximum number of clusters
+        # max_num_clusters = len(doc_ids_in_category) # 10 # maximum number of clusters
         
-        if len(embeddings) > 1:
-            min_cluster_size = int(np.ceil(len(doc_ids_in_category) / max_num_clusters))
-            num_clusters, clusters = HDBClustering(embeddings, min_cluster_size)
-        elif len(embeddings) == 1:
-            clusters = [1]
-        else:
-            print(f'No embeddings in this category: {category}')
 
-        if len(clusters) != len(doc_ids_in_category):
-            print(f"Length of labels does not match the number of documents in category '{category}'")
-            continue
+        # print(f"Number of clusters in Categroy <{category}>: {len(representatives[category].keys())}")
+        # input()
+        while len(representatives[category].keys()) > 20:
+            embeddings = list(map(torch.Tensor,representatives[category].values()))
+            if len(embeddings) <= 1:
+                break
 
-        for doc_id, cluster in zip(doc_ids_in_category, clusters):
-            clustering[category][cluster].append(doc_id)
+            # Cluster current centroids
+            num_clusters, centers, clusters = HDBClustering(embeddings, store_centers="centroid")
+
+            if centers is None or len(centers) == 0:
+                print(f'  Clustering failed or empty for {category}')
+                break
+            representatives[category] = {i: center for i, center in enumerate(centers)}
+            # print(f"Number of clusters in Categroy <{category}>: {len(representatives[category].keys())}")
+            # input()
+
+
+
+        # if len(clusters) != len(doc_ids_in_category):
+        #     print(f"Length of labels does not match the number of documents in category '{category}'")
+        #     continue
+
+        # for doc_id, cluster in zip(doc_ids_in_category, clusters):
+        #     clustering[category][cluster].append(doc_id)
+        #     representatives[category][cluster] = centers[clusters] if cluster >= 0 else None
 
         # if ctr == 10:
         #     return clustering
 
-    return clustering
+
+    # ensure 32 bit
+    representatives = {
+        category: {
+            label: (repr.astype(np.float32) if repr.dtype != np.float32 else repr)
+            for label, repr in clusters.items()
+        }
+        for category, clusters in representatives.items()
+    }
+
+    return representatives
+    # return clustering
 
 def compute_representatives(
     df_doc_emb: pd.DataFrame,
@@ -114,12 +140,12 @@ def sbert_static_load(df_doc_data: pd.DataFrame, df_doc_emb: pd.DataFrame) -> No
     categories = compute_categories(df_doc_data)
 
     # 2: Cluster documents within each category
-    clustering = compute_clustering(df_doc_emb, categories)
+    representatives = compute_clustering(df_doc_emb, categories)
 
     # 3: Compute representative (centroid) embeddings per cluster
-    representatives = compute_representatives(df_doc_emb, clustering)
+    # representatives = compute_representatives(df_doc_emb, clustering)
 
-    if clustering.keys() != representatives.keys():
+    if categories.keys() != representatives.keys():
         print(f"Categories and categories in representatives do not match!")
         
     # 4: Persist representatives

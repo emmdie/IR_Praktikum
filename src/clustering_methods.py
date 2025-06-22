@@ -45,3 +45,23 @@ def HDBClustering(doc_embeddings, min_cluster_size=2):
         unique_clusters.remove(-1) # -1 is the noise cluster
     num_clusters = len(unique_clusters)
     return num_clusters, labels
+
+def HDBClustering(doc_embeddings, min_cluster_size=2, store_centers=None):
+    # Convert to numpy array for clustering
+    embeddings = torch.stack(doc_embeddings).numpy()
+
+    # min cluster size is no less then two
+    min_cluster_size = max(2, min_cluster_size)
+
+    # Cluster using HDBScan
+    clusterer = HDBSCAN(metric='cosine', min_cluster_size=min_cluster_size, min_samples=1, store_centers=store_centers)
+    clusterer.fit(embeddings)
+
+    # Eliminate the unclustered elements
+    labels = clusterer.labels_
+    centers = clusterer.centroids_ if store_centers is not None else None
+    unique_clusters = set(labels)
+    if -1 in unique_clusters:
+        unique_clusters.remove(-1) # -1 is the noise cluster
+    num_clusters = len(unique_clusters)
+    return num_clusters, centers, labels

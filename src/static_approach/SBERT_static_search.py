@@ -1,3 +1,6 @@
+import sys
+import os
+
 import torch
 import pandas as pd
 from sentence_transformers import util, SentenceTransformer
@@ -5,6 +8,7 @@ from typing import Dict, List, Any
 
 from saving_and_loading import load_pickle
 from load_docs import load_doc_data, load_doc_embeddings
+import show
 
 model = SentenceTransformer("all-mpnet-base-v2")
 
@@ -122,7 +126,7 @@ def sbert_static_search(df_doc_data: pd.DataFrame, df_doc_emb: pd.DataFrame) -> 
 
     # SEARCHING
     print('Retrieving documents...')
-    query = "hammer"
+    query = "cat"
     search_results = search(query, df_doc_emb, representatives_loaded)
     search_results = add_doc_texts(search_results, df_doc_data)
     print(f'Search results: {search_results}')
@@ -138,4 +142,6 @@ if __name__ == "__main__":
 
     print('Finished loading data')
 
-    sbert_static_search(df_doc_data, df_doc_emb)
+    results = sbert_static_search(df_doc_data, df_doc_emb)
+
+    show.doc_texts_clusterwise(results)
