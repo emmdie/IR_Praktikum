@@ -1,4 +1,6 @@
 import re
+import pandas as pd
+from typing import Dict, Set
 from collections import defaultdict
 
 
@@ -6,7 +8,7 @@ def tokenize(string : str):
     tokens = set(re.findall(r'\w+', string.lower())[:35])
     return tokens
 
-def build_inverted_index(df_text):
+def build_inverted_index(df_text : pd.DataFrame) -> Dict[str, Set[str]]:
     word_to_strings = defaultdict(set)
     for i, (d_id, row) in enumerate(df_text.iterrows()):
         row_string = f'{row.label} {row.text}'

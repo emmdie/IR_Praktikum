@@ -4,7 +4,7 @@ import torch
 import numpy as np
 import pandas as pd
 from collections import defaultdict
-from typing import Dict, List
+from typing import Dict, Set
 
 # Add project root to sys.path
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
@@ -14,7 +14,7 @@ from src.clustering_methods import HDBClustering
 from saving_and_loading import save_pickle
 from load_docs import load_doc_data, load_doc_embeddings
 
-def compute_categories(docs: pd.DataFrame) -> Dict[str, List[str]]:
+def compute_categories(docs: pd.DataFrame) -> Dict[str, Set[str]]:
     """
     Build an inverted index mapping each category to its associated document IDs.
     
@@ -22,11 +22,11 @@ def compute_categories(docs: pd.DataFrame) -> Dict[str, List[str]]:
         docs (pd.DataFrame): DataFrame containing document metadata, including categories.
     
     Returns:
-        dict: A mapping from category names to lists of document IDs.
+        dict: A mapping from category names to sets of document IDs.
     """
     return build_inverted_index(docs)
 
-def compute_clustering(df_doc_emb: pd.DataFrame, categories: Dict[str, List[str]]) -> Dict[str, Dict[int, List[str]]]:
+def compute_clustering(df_doc_emb: pd.DataFrame, categories: Dict[str, Set[str]]) -> Dict[str, Dict[int, Set[str]]]:
     """
     Cluster documents within each category using HDBSCAN, skipping very large categories.
     
@@ -76,7 +76,7 @@ def compute_clustering(df_doc_emb: pd.DataFrame, categories: Dict[str, List[str]
 
 def compute_representatives(
     df_doc_emb: pd.DataFrame,
-    clustering: Dict[str, Dict[int, List[str]]]
+    clustering: Dict[str, Dict[int, Set[str]]]
 ) -> Dict[str, Dict[int, np.ndarray]]:
     """
     Compute centroid embedding for each cluster to use as its semantic representative.

@@ -1,5 +1,4 @@
 import os, sys
-from sentence_transformers import SentenceTransformer
 
 # Add project root to sys.path
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
@@ -9,9 +8,6 @@ from load_docs import load_doc_data, load_doc_embeddings
 import show
 from SBERT_static_load import sbert_static_load
 from SBERT_static_search import sbert_static_search
-
-model = SentenceTransformer("all-mpnet-base-v2")
-
 
 if __name__ == "__main__":
 

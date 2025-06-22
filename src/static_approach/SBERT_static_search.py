@@ -1,11 +1,12 @@
 import torch
 import pandas as pd
-from sentence_transformers import util
+from sentence_transformers import util, SentenceTransformer
 from typing import Dict, List, Any
 
 from saving_and_loading import load_pickle
 from load_docs import load_doc_data, load_doc_embeddings
 
+model = SentenceTransformer("all-mpnet-base-v2")
 
 # currently exact match
 def find_category(query: str, categories: Any) -> str:
@@ -27,6 +28,7 @@ def retrieve_top_k(
     doc_embeddings = torch.stack(doc_embeddings)
     cos_scores = util.cos_sim(query_embedding, doc_embeddings)[0]
     top_k_indices = torch.topk(cos_scores, k=k).indices
+    
     return [doc_ids[i] for i in top_k_indices]
 
 def search(
@@ -36,21 +38,30 @@ def search(
     k: int = 3
 ) -> pd.DataFrame:
     """
-    Run semantic search over clustered document embeddings.
+    Run semantic search using cluster centroids and return top-matching documents.
+
+    Args:
+        query (str): User query string.
+        df_doc_emb (pd.DataFrame): DataFrame of document embeddings.
+        representatives (dict): Mapping from category → cluster → centroid embedding.
+        k (int): Number of top documents to retrieve per cluster.
 
     Returns:
-        A DataFrame containing matched document IDs, their category, and cluster label.
+        pd.DataFrame: Ranked document matches with category and cluster metadata.
     """
+    # Find category
     category = find_category(query, representatives.keys())
     query_semantics = representatives[category]
     
+    # Load all embeddings
     doc_embeddings = list(map(torch.Tensor, df_doc_emb.embedding))
     doc_ids = df_doc_emb.index.tolist()
     
     results = []
 
-    # IT CAN HAPPEN that a document is found with different semantics and therefore is contained in several clusters!
+    # NOTE Documents may appear in multiple clusters due to overlapping semantics
 
+    # retrieve top_k documents for each semantic
     for cluster_label, query_semantic_embedding in query_semantics.items():
         top_ids = retrieve_top_k(query_semantic_embedding, doc_embeddings, doc_ids, k)
         for doc_id in top_ids:
@@ -60,7 +71,32 @@ def search(
                 'cluster': cluster_label
             })
     results_df = pd.DataFrame(results).set_index('d_id')
-    # TODO initial Ordering
+    results_df = rank(results_df, query, df_doc_emb)
+    return results_df
+
+def rank(results_df: pd.DataFrame, query: str, df_doc_emb) -> pd.DataFrame:
+    """
+    Rank matched documents by cosine similarity to the query.
+
+    Args:
+        results_df (pd.DataFrame): DataFrame of matched documents.
+        query (str): User query string.
+        df_doc_emb (pd.DataFrame): DataFrame of document embeddings.
+
+    Returns:
+        pd.DataFrame: Ranked results with 'rank' column (1 = most similar).
+    """
+
+    # Compute embedding of query and get embeddings of results
+    query_embedding = model.encode(query, convert_to_tensor=True, normalize_embeddings=True) # TODO check if this matches the embedding config used
+    doc_ids = results_df.index.tolist()
+    results_embeddings = [torch.tensor(df_doc_emb.loc[doc_id].embedding) for doc_id in doc_ids]
+    
+    # Rank documents based on cosine similarity to query
+    cos_scores = util.cos_sim(query_embedding, torch.stack(results_embeddings))[0]
+    results_df = results_df.copy()
+    results_df['rank'] = cos_scores.argsort(descending=True).argsort().add(1).numpy()
+    
     return results_df
 
 def add_doc_texts(results_df: pd.DataFrame, df_doc_data: pd.DataFrame) -> pd.DataFrame:
@@ -81,7 +117,7 @@ def sbert_static_search(df_doc_data: pd.DataFrame, df_doc_emb: pd.DataFrame) -> 
     # LOADING
     print('SEARCHING...')
     print('Loading semnatics...')
-    representatives_loaded = load_pickle()
+    representatives_loaded = load_pickle()#"/home/martin/University/08_IRP/IR_Praktikum/src/static_approach/representatives.pkl")
     print('Semantics loaded')
 
     # SEARCHING
