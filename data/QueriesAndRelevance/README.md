@@ -1,6 +1,6 @@
-# Output Files for the IR System
+# Queries and Evaluation tools
 
-This folder contains three files used in an Information Retrieval (IR) system that works with homonyms (words with the same spelling but different meanings).
+This folder contains three files used for our IR system that works with homonyms.
 
 All files have been updated so they match the correct document IDs from the Wikipedia dataset.
 
