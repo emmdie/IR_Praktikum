@@ -1,11 +1,11 @@
 .search_input {
-    width: 80%;
+    width: 50%;
     min-width: 20;
-    max-width: 90%;
+    max-width: 50%;
 }
 .result-frame {
     border: solid gray;
-    padding: 1;
-    margin: 1;
+    padding: 0;
+    margin: 0;
     background: $surface;
 }
