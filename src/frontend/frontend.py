@@ -1,5 +1,5 @@
 from typing import Dict, List
-from . import fake_results_generator
+from frontend import fake_results_generator
 import pandas as pd
 
 from textual import on
@@ -32,22 +32,22 @@ class SearchEngineFrontend(App):
         self.theme = (
             "textual-dark" if self.theme == "textual-light" else "textual-light")
 
-def populate_results_from_df(self, df: pd.DataFrame) -> None:
-    self.clear_results()
-    results_container: Widget = self.query_one("#results_container")
-    top_ten = df.head(10)
+    def populate_results_from_df(self, df: pd.DataFrame) -> None:
+        self.clear_results()
+        results_container: Widget = self.query_one("#results_container")
+        top_ten = df.head(10)
 
-    for _, row in top_ten.iterrows():
-        rf = ResultField(
-            ranking=row["init_ranking"],
-            cluster=str(row["cluster"]),
-            doc_id=str(row["doc_id"]),
-            text=row["text"]
-        )
-        results_container.mount(rf)
+        for _, row in top_ten.iterrows():
+            rf = ResultField(
+                ranking=row["init_ranking"],
+                cluster=str(row["cluster"]),
+                doc_id=str(row["doc_id"]),
+                text=row["text"]
+            )
+            results_container.mount(rf)
 
     def on_search_triggered(self, message: SearchTriggered) -> None:
-        fake_results = generate_fake_results_df
+        fake_results = fake_results_generator.generate_fake_results_df()
         self.populate_results_from_df(fake_results)
    
     def clear_results(self) -> None:
