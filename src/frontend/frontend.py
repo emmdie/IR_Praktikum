@@ -1,4 +1,5 @@
 from typing import Dict, List
+from . import fake_results_generator
 import pandas as pd
 
 from textual import on
@@ -22,46 +23,32 @@ class SearchEngineFrontend(App):
     BINDINGS = [("d", "toggle_dark", "Toggle dark mode")]
 
     def compose(self) -> ComposeResult:
-        """Create child widgets for the app."""
         yield Header()
         yield Footer()
         yield SearchBar()
         yield VerticalScroll(id="results_container")
 
     def action_toggle_dark(self) -> None:
-        """An action to toggle dark mode."""
         self.theme = (
             "textual-dark" if self.theme == "textual-light" else "textual-light")
 
-    def populate_results_from_dict(self, result_list: List[Dict]) -> None:
-        self.clear_results()
-        results_container: Widget = self.query_one("#results_container")
-        top_ten = result_list[:10]
+def populate_results_from_df(self, df: pd.DataFrame) -> None:
+    self.clear_results()
+    results_container: Widget = self.query_one("#results_container")
+    top_ten = df.head(10)
 
-        for entry in top_ten:
-            rf = ResultField(
-                ranking=entry["init_ranking"],
-                cluster=str(entry["cluster"]),
-                doc_id=str(entry["doc_id"]),
-                text=entry["text"]
-            )
-            results_container.mount(rf)
-    
-
-    def generate_fake_results(self) -> List[Dict]:
-        return [
-            {"doc_id": 182348321, "init_ranking": 55, "category": "Ohrenschmalzentferner", "cluster": 6, "text": "Der Ohrenschmalzentferner schläft nie"},
-            {"doc_id": 182348322, "init_ranking": 48, "category": "Kaffeemaschine", "cluster": 2, "text": "Die Kaffeemaschine ist kaputt"},
-            {"doc_id": 1823245322, "init_ranking": 13, "category": "Jaguar", "cluster": 2, "text": "Der Jaguar hat den Tofu erlegt"},
-            {"doc_id": 1568756722, "init_ranking": 38, "category": "Car", "cluster": 2, "text": "Das Auto hat keinen Tofu erlegt"},
-            {"doc_id": 1828857682, "init_ranking": 28, "category": "puma", "cluster": 2, "text": "Eine Schuhmarke, hat nichts mit Jaguaren zu tun"},
-            {"doc_id": 1823999992, "init_ranking": 48, "category": "Ksafd", "cluster": 2, "text": "Ein zufälliger String, es scheint keine Naheliegende Verbindung zu "},
- 
-            ]
+    for _, row in top_ten.iterrows():
+        rf = ResultField(
+            ranking=row["init_ranking"],
+            cluster=str(row["cluster"]),
+            doc_id=str(row["doc_id"]),
+            text=row["text"]
+        )
+        results_container.mount(rf)
 
     def on_search_triggered(self, message: SearchTriggered) -> None:
-        fake_results = self.generate_fake_results()
-        self.populate_results_from_dict(fake_results)
+        fake_results = generate_fake_results_df
+        self.populate_results_from_df(fake_results)
    
     def clear_results(self) -> None:
         results_container: Widget = self.query_one("#results_container")
