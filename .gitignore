@@ -2,5 +2,5 @@
 .idea
 /**/__pycache__
 data/wikipedia/testdata/embedded/*.pkl.gzip
-data/test-data-martin
+data/test-data-martin/
 /src/static_approach/**/*.pkl*

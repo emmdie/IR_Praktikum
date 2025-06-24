@@ -1,5 +1,6 @@
 import torch
 import pandas as pd
+import pathlib
 from sentence_transformers import util, SentenceTransformer
 from typing import Dict, List, Any
 
@@ -105,7 +106,11 @@ def add_doc_texts(results_df: pd.DataFrame, df_doc_data: pd.DataFrame) -> pd.Dat
     """
     return results_df.join(df_doc_data.text)
 
-def sbert_static_search(df_doc_data: pd.DataFrame, df_doc_emb: pd.DataFrame) -> pd.DataFrame:
+def sbert_static_search(
+    path_to_doc_data: str = "data/wikipedia/testdata/raw", 
+    path_to_doc_emb: str = "data/test-data-martin", 
+    path_to_representatives: str = "data/static-approach"
+) -> pd.DataFrame:
     """
     Execute the static SBERT-based semantic search.
 
@@ -113,11 +118,21 @@ def sbert_static_search(df_doc_data: pd.DataFrame, df_doc_emb: pd.DataFrame) -> 
     - Load precomputed semantic cluster representatives
     - Run semantic search
     - Join document texts
-    """
+    """ 
+    project_root = pathlib.Path(__file__).parents[2]
+    
+    path_to_doc_data = (project_root / path_to_doc_data).as_posix()
+    path_to_doc_emb = (project_root / path_to_doc_emb).as_posix()
+    path_to_representatives = (project_root / path_to_representatives).as_posix()
+    
+    df_doc_data = load_doc_data(path_to_doc_data)
+    df_doc_emb = load_doc_embeddings(path_to_doc_emb)
+    
+    
     # LOADING
     print('SEARCHING...')
-    print('Loading semnatics...')
-    representatives_loaded = load_pickle()#"/home/martin/University/08_IRP/IR_Praktikum/src/static_approach/representatives.pkl")
+    print('Loading semantics...')
+    representatives_loaded = load_pickle(path_to_representatives, "representatives.pkl")
     print('Semantics loaded')
 
     # SEARCHING
@@ -133,9 +148,4 @@ def sbert_static_search(df_doc_data: pd.DataFrame, df_doc_emb: pd.DataFrame) -> 
 
 if __name__ == "__main__":
 
-    df_doc_data = load_doc_data()
-    df_doc_emb = load_doc_embeddings()
-
-    print('Finished loading data')
-
-    sbert_static_search(df_doc_data, df_doc_emb)
+    sbert_static_search()

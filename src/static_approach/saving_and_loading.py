@@ -13,11 +13,15 @@ def save_msgpack(file, file_path="./representatives.msgpack"):
         f.write(packed)
 
 # Pickle
-def save_pickle(file, file_path="./representatives.pkl"):
+def save_pickle(file, directory=".", file_name="representatives.pkl"):
+    file_path = directory + "/" + file_name
+    print(f"Saving pickle file to: {file_path}")
     with open(file_path, "wb") as f:
         pickle.dump(file, f, protocol=pickle.HIGHEST_PROTOCOL)
 
-def load_pickle(file_path="./representatives.pkl"):
+def load_pickle(directory=".", file_name="representatives.pkl"):
+    file_path = directory + "/" + file_name
+    print(f"Trying to load file from: {file_path}")
     with open(file_path, "rb") as f:
         file = pickle.load(f)
         return file

@@ -5,6 +5,7 @@ import numpy as np
 import pandas as pd
 from collections import defaultdict
 from typing import Dict, Set
+import pathlib
 
 # Add project root to sys.path
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
@@ -100,7 +101,11 @@ def compute_representatives(
 
     return representatives
 
-def sbert_static_load(df_doc_data: pd.DataFrame, df_doc_emb: pd.DataFrame) -> None:
+def sbert_static_load(
+    path_to_doc_data: str = "data/wikipedia/testdata/raw", 
+    path_to_doc_emb: str = "data/test-data-martin", 
+    path_to_representatives: str = "data/static-approach"
+) -> None:
     """
     Executes the static loading pipeline:
     - Creates categories by building inverted index
@@ -108,6 +113,21 @@ def sbert_static_load(df_doc_data: pd.DataFrame, df_doc_emb: pd.DataFrame) -> No
     - Computes centroid representatives
     - Saves the representatives to disk
     """
+    print('Loading data')
+    project_root = pathlib.Path(__file__).parents[2]
+    
+    path_to_doc_data = (project_root / path_to_doc_data).as_posix()
+    path_to_doc_emb = (project_root / path_to_doc_emb).as_posix()
+    path_to_representatives = (project_root / path_to_representatives).as_posix()
+    
+    df_doc_data = load_doc_data(path_to_doc_data)
+    df_doc_emb = load_doc_embeddings(path_to_doc_emb)
+
+    print(df_doc_data)
+    print(df_doc_emb)
+
+    print('Finished loading data')
+    
     print('Starting loading phase')   
     
     # 1: Build inverted index: category → [doc_ids]
@@ -123,16 +143,11 @@ def sbert_static_load(df_doc_data: pd.DataFrame, df_doc_emb: pd.DataFrame) -> No
         print(f"Categories and categories in representatives do not match!")
         
     # 4: Persist representatives
-    save_pickle(representatives)
+    save_pickle(representatives, path_to_representatives, "representatives.pkl")
 
     print('Loading Phase finished')
 
 
 if __name__ == "__main__":
 
-    df_doc_data = load_doc_data()
-    df_doc_emb = load_doc_embeddings()
-
-    print('Finished loading data')
-
-    sbert_static_load(df_doc_data, df_doc_emb)
+    sbert_static_load()
