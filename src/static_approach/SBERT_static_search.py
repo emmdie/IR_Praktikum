@@ -107,6 +107,7 @@ def add_doc_texts(results_df: pd.DataFrame, df_doc_data: pd.DataFrame) -> pd.Dat
     return results_df.join(df_doc_data.text)
 
 def sbert_static_search(
+    query: str = "hammer",
     path_to_doc_data: str = "data/wikipedia/testdata/raw", 
     path_to_doc_emb: str = "data/test-data-martin", 
     path_to_representatives: str = "data/static-approach"
@@ -137,7 +138,6 @@ def sbert_static_search(
 
     # SEARCHING
     print('Retrieving documents...')
-    query = "hammer"
     search_results = search(query, df_doc_emb, representatives_loaded)
     search_results = add_doc_texts(search_results, df_doc_data)
     print(f'Search results: {search_results}')
@@ -147,5 +147,5 @@ def sbert_static_search(
     return search_results
 
 if __name__ == "__main__":
-
+    
     sbert_static_search()
