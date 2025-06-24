@@ -27,7 +27,7 @@ def AgglomerativeClustering(doc_embeddings, similarity_threshold=.75):
 
     return num_clusters, labels
 
-def HDBClustering(doc_embeddings, min_cluster_size=2):
+def HDBClustering(doc_embeddings, min_cluster_size=2, cluster_selection_epsilon=0):
     # Convert to numpy array for clustering
     embeddings = torch.stack(doc_embeddings).numpy()
 
@@ -35,13 +35,10 @@ def HDBClustering(doc_embeddings, min_cluster_size=2):
     min_cluster_size = max(2, min_cluster_size)
 
     # Cluster using HDBScan
-    clusterer = HDBSCAN(metric='cosine', min_cluster_size=min_cluster_size, min_samples=1)
+    clusterer = HDBSCAN(metric='cosine', min_cluster_size=min_cluster_size, min_samples=1, cluster_selection_epsilon=cluster_selection_epsilon)
     clusterer.fit(embeddings)
 
     # Eliminate the unclustered elements
     labels = clusterer.labels_
-    unique_clusters = set(labels)
-    if -1 in unique_clusters:
-        unique_clusters.remove(-1) # -1 is the noise cluster
-    num_clusters = len(unique_clusters)
+    num_clusters = len(set(labels))
     return num_clusters, labels

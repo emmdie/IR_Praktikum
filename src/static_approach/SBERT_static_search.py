@@ -96,7 +96,7 @@ def rank(results_df: pd.DataFrame, query: str, df_doc_emb) -> pd.DataFrame:
     # Rank documents based on cosine similarity to query
     cos_scores = util.cos_sim(query_embedding, torch.stack(results_embeddings))[0]
     results_df = results_df.copy()
-    results_df['rank'] = cos_scores.argsort(descending=True).argsort().add(1).numpy()
+    results_df['new_rank'] = cos_scores.argsort(descending=True).argsort().add(1).numpy()
     
     return results_df
 
@@ -148,4 +148,4 @@ def sbert_static_search(
 
 if __name__ == "__main__":
     
-    sbert_static_search()
+    sbert_static_search("jaguar")

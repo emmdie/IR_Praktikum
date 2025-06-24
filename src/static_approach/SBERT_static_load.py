@@ -57,7 +57,17 @@ def compute_clustering(df_doc_emb: pd.DataFrame, categories: Dict[str, Set[str]]
         
         if len(embeddings) > 1:
             min_cluster_size = int(np.ceil(len(doc_ids_in_category) / max_num_clusters))
-            num_clusters, clusters = HDBClustering(embeddings, min_cluster_size)
+            cluster_selection_epsilon = 0.4
+            num_clusters = 11 # something greater 10
+            while num_clusters > 10:
+                num_clusters, clusters = HDBClustering(embeddings, min_cluster_size=min_cluster_size, cluster_selection_epsilon=cluster_selection_epsilon)
+                print(f"Num clusters {category}: {num_clusters}")
+                if num_clusters > 100:
+                    cluster_selection_epsilon += 0.1
+                elif num_clusters < 20:
+                    cluster_selection_epsilon += 0.01
+                else:
+                    cluster_selection_epsilon += 0.03
         elif len(embeddings) == 1:
             clusters = [1]
         else:
