@@ -1,5 +1,7 @@
 from typing import Dict, List
-from frontend import fake_results_generator
+
+from rich import color
+from frontend import fake_results_generator, df_prepocessing
 import pandas as pd
 
 from textual import on
@@ -42,13 +44,15 @@ class SearchEngineFrontend(App):
                 ranking=row["init_ranking"],
                 cluster=str(row["cluster"]),
                 doc_id=str(row["doc_id"]),
-                text=row["text"]
+                text=row["text"],
+                color=row["cluster_color"]
             )
             results_container.mount(rf)
 
     def on_search_triggered(self, message: SearchTriggered) -> None:
-        fake_results = fake_results_generator.generate_fake_results_df()
-        self.populate_results_from_df(fake_results)
+        results_df = fake_results_generator.generate_fake_results_df()
+        results_df = df_prepocessing.assign_cluster_colors(results_df)
+        self.populate_results_from_df(results_df)
    
     def clear_results(self) -> None:
         results_container: Widget = self.query_one("#results_container")
@@ -75,18 +79,22 @@ class SearchBar(HorizontalGroup):
         self.title = str(event.value)
 
 class ResultField(Vertical):
-    def __init__(self, ranking: int, cluster: str, doc_id: str, text: str) -> None:
+    def __init__(self, ranking: int, cluster: str, doc_id: str, text: str, color: str) -> None:
         super().__init__()
         self.ranking = ranking
         self.cluster = cluster
         self.doc_id = doc_id
         self.text = text
+        self.color = color
 
     def compose(self):
-        yield Container(
+        container = Container(
             Vertical(
                 Label(f"#{self.ranking} | Cluster: {self.cluster} | ID: {self.doc_id}", classes="result-header"),
                 Static(Text.from_markup(self.text), classes="result-body"),
             ),
-            classes="result-frame"
-                        )
+            classes="result-frame",
+            )
+        container.styles.border = ("round", self.color)
+        #container.styles.padding = 1
+        yield container
