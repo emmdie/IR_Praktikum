@@ -1,11 +1,42 @@
 .search_input {
-    width: 50%;
-    min-width: 20;
-    max-width: 50%;
+    margin: 1;
+    width: 80%;
 }
+
 .result-frame {
-    border: solid gray;
-    padding: 0;
-    margin: 0;
+    margin: 1;
+    padding: 1;
+    border: solid $primary;
     background: $surface;
+    min-height: 3;
+}
+
+.result-header {
+    text-style: bold;
+    color: $accent;
+    margin-bottom: 1;
+}
+
+.result-body {
+    margin-left: 1;
+    margin-right: 1;
+}
+
+.reranking-controls {
+    margin: 1;
+    padding: 1;
+    border: solid $secondary;
+    background: $surface;
+}
+
+.control-label {
+    text-style: bold;
+    margin-bottom: 1;
+}
+
+.error-message {
+    color: red;
+    text-style: bold;
+    margin: 1;
+    padding: 1;
 }
