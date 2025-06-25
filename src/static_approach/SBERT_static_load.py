@@ -12,7 +12,7 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '.
 
 from inverted_index import build_inverted_index
 from src.clustering_methods import HDBClustering
-from saving_and_loading import save_pickle
+from saving_and_loading import save_pickle_gz
 from load_docs import load_doc_data, load_doc_embeddings
 
 def compute_categories(docs: pd.DataFrame) -> Dict[str, Set[str]]:
@@ -184,7 +184,7 @@ def sbert_static_load(
         print(f"Categories and categories in representatives do not match!")
         
     # 4: Persist representatives
-    save_pickle(representatives, path_to_representatives, "representatives.pkl")
+    save_pickle_gz(representatives, path_to_representatives, "representatives.pkl.gz")
 
     print('Loading Phase finished')
 

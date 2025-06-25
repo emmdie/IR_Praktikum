@@ -4,7 +4,7 @@ import pathlib
 from sentence_transformers import util, SentenceTransformer
 from typing import Dict, List, Any
 
-from saving_and_loading import load_pickle
+from saving_and_loading import load_pickle_gz
 from load_docs import load_doc_data, load_doc_embeddings
 
 model = SentenceTransformer("all-mpnet-base-v2")
@@ -135,7 +135,7 @@ def sbert_static_search(
     # LOADING
     print('SEARCHING...')
     print('Loading semantics...')
-    representatives_loaded = load_pickle(path_to_representatives, "representatives.pkl")
+    representatives_loaded = load_pickle_gz(path_to_representatives, "representatives.pkl.gz")
     print('Semantics loaded')
 
     # SEARCHING
