@@ -35,8 +35,9 @@ def load_doc_embeddings(path='../../data/test-data-martin'):
 
     return combined_df
 
-def load_doc_data(path='../../data/wikipedia/testdata/raw'):
+def load_doc_data(path='../../../data/wikipedia/testdata/raw'):
     pickle_files = load_pickle_files(path)
+    
     
     categories = get_categories_from_filenames(pickle_files)
 
@@ -77,6 +78,23 @@ def load_doc_embeddings_hpc(path):
 
     return combined_df
 
+
+def cos_sim(doc_a, doc_b):
+    pass
+
 if __name__ == "__main__":
 
     load_doc_data_hpc("/home/martin/University/08_IRP/IR_Praktikum/data/wikipedia/split-data-no-disambiguation")
+
+
+    num_docs = 1000
+    num_pairs = 0
+    total_similarity = 0.0
+    list_docs = [] # contains all the embeddings
+    for i in range(num_docs):
+        j = i + 1 # don't compute cos score with doc itself
+        while j < num_docs:            
+            num_pairs += 1
+            total_similarity += cos_sim(list_docs[i], list_docs[j])
+
+    heterogenity_score = 1.0 - total_similarity/ num_pairs

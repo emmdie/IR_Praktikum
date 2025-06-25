@@ -150,4 +150,4 @@ def sbert_static_search(
 
 if __name__ == "__main__":
     
-    sbert_static_search(query="jaguar", retrieve_per_cluster=6)
+    sbert_static_search(query="car", retrieve_per_cluster=6)

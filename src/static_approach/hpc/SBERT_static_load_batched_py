@@ -1,32 +1,38 @@
-import os
-import sys
-import torch
-import numpy as np
-import pandas as pd
-from collections import defaultdict
+import re
 from typing import Dict, Set
-import pathlib
+import numpy as np
+import torch
+import pickle
+import pandas as pd
+from sklearn.cluster import HDBSCAN
+from collections import defaultdict
+from load_docs import *
+from saving_and_loading import *
+import sys
 
-# Add project root to sys.path
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
+def load_batch(path_to_batch_dir: str, batch_nr: int) -> pd.DataFrame:
+    path_to_batch = path_to_batch_dir + f"/batch_{batch_nr}.pkl"
+    with open(path_to_batch, "rb") as batch_file:
+        return pickle.load(batch_file)
 
-from inverted_index import build_inverted_index
-from src.clustering_methods import HDBClustering
-from saving_and_loading import save_pickle_gz
-from load_docs import load_doc_data, load_doc_embeddings
+### HDB Clustering #####################
+def HDBClustering(doc_embeddings, min_cluster_size=2, cluster_selection_epsilon=0.0, alpha=1.0):
+    # Convert to numpy array for clustering
+    embeddings = torch.stack(doc_embeddings).numpy()
 
-def compute_categories(docs: pd.DataFrame) -> Dict[str, Set[str]]:
-    """
-    Build an inverted index mapping each category to its associated document IDs.
-    
-    Args:
-        docs (pd.DataFrame): DataFrame containing document metadata, including categories.
-    
-    Returns:
-        dict: A mapping from category names to sets of document IDs.
-    """
-    return build_inverted_index(docs)
+    # min cluster size is no less then two
+    min_cluster_size = max(2, min_cluster_size)
 
+    # Cluster using HDBScan
+    clusterer = HDBSCAN(metric='cosine', min_cluster_size=min_cluster_size, min_samples=1, cluster_selection_epsilon=cluster_selection_epsilon, alpha=alpha)
+    clusterer.fit(embeddings)
+
+    # Eliminate the unclustered elements
+    labels = clusterer.labels_
+    num_clusters = len(set(labels))
+    return num_clusters, labels
+
+### SBERT static load ###################
 def compute_clustering(df_doc_emb: pd.DataFrame, categories: Dict[str, Set[str]]) -> Dict[str, Dict[int, Set[str]]]:
     """
     Cluster documents within each category using HDBSCAN, skipping very large categories.
@@ -43,11 +49,9 @@ def compute_clustering(df_doc_emb: pd.DataFrame, categories: Dict[str, Set[str]]
         clustering[category] = defaultdict(list)
 
 
-        if len(doc_ids_in_category) > 8000:
-            print(f'{ctr:} {category} SKIPPED')
+        if category in {"the", "is", "in", "and", "to", "a", "of", "that", "it", "on", "for", "with", "as", "was", "at", "by", "an"}:
             continue
-        else:
-            print(f'{ctr:} {category}')
+        print(f'{ctr:} {category}')
 
         docs_in_category = df_doc_emb.loc[list(doc_ids_in_category)]
         embeddings = list(map(torch.Tensor, docs_in_category.embedding))
@@ -83,7 +87,7 @@ def compute_clustering(df_doc_emb: pd.DataFrame, categories: Dict[str, Set[str]]
                     alpha += 0.1
                     stuck_counter = 0
                     # input(f"Alpha increased to {alpha}!")
-                    print(f"Alpha increased to {alpha}!")
+                    # print(f"Alpha increased to {alpha}!")
                 
                 # If giant jump in num_cluster (like 18 to 3), undo reducing alpha
                 # A giant jump only occurred after alpha reduction for values < 20
@@ -139,24 +143,21 @@ def compute_representatives(
 
     return representatives
 
-def sbert_static_load(
-    path_to_doc_data: str = "data/wikipedia/testdata/raw", 
-    path_to_doc_emb: str = "data/test-data-martin", 
-    path_to_representatives: str = "data/static-approach"
+def sbert_static_load_hpc(
+    path_to_doc_data: str,
+    path_to_doc_emb: str,
+    path_to_representatives: str,
+    categories: pd.DataFrame,
+    batch_nr: int
 ) -> None:
     """
     Executes the static loading pipeline:
-    - Creates categories by building inverted index
-    - Clusters documents in each category
+    - Using slice of prebuilt categories dict
+    - Clusters documents in each category of that slice
     - Computes centroid representatives
     - Saves the representatives to disk
     """
     print('Loading data')
-    project_root = pathlib.Path(__file__).parents[2]
-    
-    path_to_doc_data = (project_root / path_to_doc_data).as_posix()
-    path_to_doc_emb = (project_root / path_to_doc_emb).as_posix()
-    path_to_representatives = (project_root / path_to_representatives).as_posix()
     
     df_doc_data = load_doc_data(path_to_doc_data)
     df_doc_emb = load_doc_embeddings(path_to_doc_emb)
@@ -167,9 +168,6 @@ def sbert_static_load(
     print('Finished loading data')
     
     print('Starting loading phase')   
-    
-    # 1: Build inverted index: category → [doc_ids]
-    categories = compute_categories(df_doc_data)
 
     # 2: Cluster documents within each category
     clustering = compute_clustering(df_doc_emb, categories)
@@ -181,11 +179,22 @@ def sbert_static_load(
         print(f"Categories and categories in representatives do not match!")
         
     # 4: Persist representatives
-    save_pickle_gz(representatives, path_to_representatives, "representatives.pkl.gz")
+    save_pickle_gz(representatives, path_to_representatives, f"representatives_{batch_nr}.pkl.gz")
 
     print('Loading Phase finished')
-
+        
 
 if __name__ == "__main__":
+    # path_to_doc_data = "/home/martin/University/08_IRP/IR_Praktikum/data/wikipedia/split-data-no-disambiguation"
+    # path_to_doc_emb  = ""
+    # path_to_representatives = "/home/martin/University/08_IRP/IR_Praktikum/data/test-data-martin/representatives"
+    # path_to_batches = "/home/martin/University/08_IRP/IR_Praktikum/data/test-data-martin/batching"
 
-    sbert_static_load()
+    path_to_doc_data: str = "/home/martin/University/08_IRP/IR_Praktikum/data/wikipedia/testdata/raw"
+    path_to_doc_emb: str = "/home/martin/University/08_IRP/IR_Praktikum/data/test-data-martin"
+    path_to_batches = "/home/martin/University/08_IRP/IR_Praktikum/data/test-data-martin/batching"
+    path_to_representatives = "/home/martin/University/08_IRP/IR_Praktikum/data/test-data-martin/representatives"
+
+    i = sys.argv[1]
+    categories = load_batch(path_to_batches, i)
+    sbert_static_load_hpc(path_to_doc_data, path_to_doc_emb, path_to_representatives, categories, i)
