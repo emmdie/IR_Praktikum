@@ -140,7 +140,7 @@ def sbert_static_search(
 
     # SEARCHING
     print('Retrieving documents...')
-    search_results = search(query, df_doc_emb, representatives_loaded)
+    search_results = search(query, df_doc_emb, representatives_loaded, retrieve_per_cluster)
     search_results = add_doc_texts(search_results, df_doc_data)
     print(f'Search results: {search_results}')
 
