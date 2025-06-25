@@ -5,6 +5,11 @@ from collections import defaultdict
 
 
 def tokenize(string : str):
+    # Remove dots and commas to improve abbreviation support
+    symbols_to_remove = '.,'
+    translation_table = str.maketrans('', '', symbols_to_remove)
+    string = string.translate(translation_table)
+
     tokens = set(re.findall(r'\w+', string.lower())[:35])
     return tokens
 
