@@ -58,16 +58,47 @@ def compute_clustering(df_doc_emb: pd.DataFrame, categories: Dict[str, Set[str]]
         if len(embeddings) > 1:
             min_cluster_size = int(np.ceil(len(doc_ids_in_category) / max_num_clusters))
             cluster_selection_epsilon = 0.4
+            alpha = 1
             num_clusters = 11 # something greater 10
+            prev_num_clusters = num_clusters + 1
+            stuck_counter = 0
+            first_iteration = True
             while num_clusters > 10:
-                num_clusters, clusters = HDBClustering(embeddings, min_cluster_size=min_cluster_size, cluster_selection_epsilon=cluster_selection_epsilon)
-                print(f"Num clusters {category}: {num_clusters}")
+                num_clusters, clusters = HDBClustering(embeddings, min_cluster_size=min_cluster_size, cluster_selection_epsilon=cluster_selection_epsilon, alpha=alpha)
+                print(f'Num clusters "{category}": {num_clusters}')
                 if num_clusters > 100:
                     cluster_selection_epsilon += 0.1
                 elif num_clusters < 20:
                     cluster_selection_epsilon += 0.01
                 else:
                     cluster_selection_epsilon += 0.03
+                
+                # Detect stagnation
+                if num_clusters == prev_num_clusters and not first_iteration:
+                    stuck_counter += 1
+                else:
+                    stuck_counter = 0
+
+                if stuck_counter >= 1:
+                    alpha += 0.1
+                    stuck_counter = 0
+                    # input(f"Alpha increased to {alpha}!")
+                    print(f"Alpha increased to {alpha}!")
+                
+                # If giant jump in num_cluster (like 18 to 3), undo reducing alpha
+                # A giant jump only occurred after alpha reduction for values < 20
+                if num_clusters <= 7 and prev_num_clusters - num_clusters >= 7 and not first_iteration:
+                    # Don't reduce alpha, but epsilon instead
+                    alpha -= 0.1
+                    
+                    # Reset cluster number
+                    num_clusters = prev_num_clusters
+                    prev_num_clusters += 1
+                    # input(f"Undoing giant jump, using alpha = {alpha}, epsilon = {cluster_selection_epsilon}")
+                else:
+                    prev_num_clusters = num_clusters                
+                    
+                first_iteration = False
         elif len(embeddings) == 1:
             clusters = [1]
         else:

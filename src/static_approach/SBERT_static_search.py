@@ -36,7 +36,7 @@ def search(
     query: str,
     df_doc_emb: pd.DataFrame,
     representatives: Dict[str, Dict[int, Any]],
-    k: int = 3
+    k: int = 6
 ) -> pd.DataFrame:
     """
     Run semantic search using cluster centroids and return top-matching documents.
@@ -67,11 +67,11 @@ def search(
         top_ids = retrieve_top_k(query_semantic_embedding, doc_embeddings, doc_ids, k)
         for doc_id in top_ids:
             results.append({
-                'd_id': doc_id,
-                'category': category,
+                'doc_id': doc_id,
+                # 'category': category,
                 'cluster': cluster_label
             })
-    results_df = pd.DataFrame(results).set_index('d_id')
+    results_df = pd.DataFrame(results).set_index('doc_id')
     results_df = rank(results_df, query, df_doc_emb)
     return results_df
 
@@ -96,7 +96,8 @@ def rank(results_df: pd.DataFrame, query: str, df_doc_emb) -> pd.DataFrame:
     # Rank documents based on cosine similarity to query
     cos_scores = util.cos_sim(query_embedding, torch.stack(results_embeddings))[0]
     results_df = results_df.copy()
-    results_df['new_rank'] = cos_scores.argsort(descending=True).argsort().add(1).numpy()
+    results_df['similarity_score'] = cos_scores
+    results_df['new_ranking'] = cos_scores.argsort(descending=True).argsort().add(1).numpy()
     
     return results_df
 
@@ -108,6 +109,7 @@ def add_doc_texts(results_df: pd.DataFrame, df_doc_data: pd.DataFrame) -> pd.Dat
 
 def sbert_static_search(
     query: str = "hammer",
+    retrieve_per_cluster: int = 5,
     path_to_doc_data: str = "data/wikipedia/testdata/raw", 
     path_to_doc_emb: str = "data/test-data-martin", 
     path_to_representatives: str = "data/static-approach"
@@ -148,4 +150,4 @@ def sbert_static_search(
 
 if __name__ == "__main__":
     
-    sbert_static_search("jaguar")
+    sbert_static_search(query="jaguar", retrieve_per_cluster=6)
