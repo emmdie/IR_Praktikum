@@ -42,8 +42,8 @@ def compute_categories(docs: pd.DataFrame) -> Dict[str, Set[str]]:
     return build_inverted_index(docs)
 
 def main(doc_data_dir: str, batch_saving_location: str, n_batches: int) -> None:
-    # df_doc_data = load_doc_data_hpc(doc_data_dir)
-    df_doc_data = load_doc_data(doc_data_dir)
+    df_doc_data = load_doc_data_hpc(doc_data_dir)
+    # df_doc_data = load_doc_data(doc_data_dir)
     print(df_doc_data)
 
     categories = compute_categories(df_doc_data)

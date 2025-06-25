@@ -51,7 +51,7 @@ def load_doc_data(path='../../../data/wikipedia/testdata/raw'):
 
 def load_doc_data_hpc(path):
 
-    pickle_files = [path + f"/wikipedia-text-data-no-disambiguation_{i}.pkl.gzip" for i in range(4)]
+    pickle_files = [path + f"/wikipedia-text-data-no-disambiguation_{i}.pkl.gzip" for i in range(13)]
     print("pickle files")
     print(*pickle_files, sep="\n")
     df_list = [pd.read_pickle(file, compression='gzip') for file in pickle_files]
@@ -65,7 +65,7 @@ def load_doc_data_hpc(path):
     return combined_df
 
 def load_doc_embeddings_hpc(path):
-    pickle_files = [path + f"/wikipedia-text-data-no-disambiguation_{i}.pkl.gzip" for i in range(4)]
+    pickle_files = [path + f"/wikipedia-text-data-no-disambiguation_{i}.pkl.gzip" for i in range(13)]
     print("pickle files")
     print(*pickle_files, sep="\n")
     df_list = [pd.read_pickle(file, compression='gzip') for file in pickle_files]
@@ -78,23 +78,6 @@ def load_doc_embeddings_hpc(path):
 
     return combined_df
 
-
-def cos_sim(doc_a, doc_b):
-    pass
-
 if __name__ == "__main__":
 
     load_doc_data_hpc("/home/martin/University/08_IRP/IR_Praktikum/data/wikipedia/split-data-no-disambiguation")
-
-
-    num_docs = 1000
-    num_pairs = 0
-    total_similarity = 0.0
-    list_docs = [] # contains all the embeddings
-    for i in range(num_docs):
-        j = i + 1 # don't compute cos score with doc itself
-        while j < num_docs:            
-            num_pairs += 1
-            total_similarity += cos_sim(list_docs[i], list_docs[j])
-
-    heterogenity_score = 1.0 - total_similarity/ num_pairs
