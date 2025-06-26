@@ -81,7 +81,7 @@ class SearchEngineFrontend(App):
         try:
             # Use the_function to get reranked results
             results = the_function(message.query, k=5, method=method)
-            self.populate_results_from_dict(results)
+            # self.populate_results_from_dict(results)
         except Exception as e:
             # Show error in results
             self.clear_results()
@@ -91,17 +91,17 @@ class SearchEngineFrontend(App):
             
             
         # results_df = fake_results_generator.generate_fake_results_df()
-        # results_df = df_prepocessing.assign_cluster_colors(results_df)
-        # self.stats_bar: StatsBar = self.query_one(StatsBar)
-        # self.populate_results_from_df(results_df)
+        results_df = df_prepocessing.assign_cluster_colors(results)
+        self.stats_bar: StatsBar = self.query_one(StatsBar)
+        self.populate_results_from_dict(results_df)
         
-        #  # Dummy stat updates for placeholder purposes
-        # self.stats_bar.update_stats({
-        #     "top_k": "10",
-        #     "swap_count": "42",
-        #     "latency": "128ms",
-        #     "doc_count": str(len(results_df))
-        # })
+         # Dummy stat updates for placeholder purposes
+        self.stats_bar.update_stats({
+            "top_k": "10",
+            "swap_count": "42",
+            "latency": "128ms",
+            "doc_count": str(len(results_df))
+        })
     def clear_results(self) -> None:
         """Clear all results from the UI"""
         results_container: Widget = self.query_one("#results_container")
