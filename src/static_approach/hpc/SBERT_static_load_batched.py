@@ -9,6 +9,9 @@ from collections import defaultdict
 from load_docs import *
 from saving_and_loading import *
 import sys
+import os
+
+PWD = os.getcwd()
 
 def load_batch(path_to_batch_dir: str, batch_nr: int) -> pd.DataFrame:
     path_to_batch = path_to_batch_dir + f"/batch_{batch_nr}.pkl"
@@ -49,9 +52,9 @@ def compute_clustering(df_doc_emb: pd.DataFrame, categories: Dict[str, Set[str]]
         clustering[category] = defaultdict(list)
 
 
-        if category in {"the", "is", "in", "and", "to", "a", "of", "that", "it", "on", "for", "with", "as", "was", "at", "by", "an"}:
-            continue
-        print(f'{ctr:} {category}')
+        #if category in {"the", "is", "in", "and", "to", "a", "of", "that", "it", "on", "for", "with", "as", "was", "at", "by", "an"}:
+        #    continue
+        #print(f'{ctr:} {category}')
 
         docs_in_category = df_doc_emb.loc[list(doc_ids_in_category)]
         embeddings = list(map(torch.Tensor, docs_in_category.embedding))
@@ -159,8 +162,8 @@ def sbert_static_load_hpc(
     """
     print('Loading data')
     
-    df_doc_data = load_doc_data(path_to_doc_data)
-    df_doc_emb = load_doc_embeddings(path_to_doc_emb)
+    df_doc_data = load_doc_data_hpc(path_to_doc_data)
+    df_doc_emb = load_doc_embeddings_hpc(path_to_doc_emb)
 
     print(df_doc_data)
     print(df_doc_emb)
@@ -190,10 +193,16 @@ if __name__ == "__main__":
     # path_to_representatives = "/home/martin/University/08_IRP/IR_Praktikum/data/test-data-martin/representatives"
     # path_to_batches = "/home/martin/University/08_IRP/IR_Praktikum/data/test-data-martin/batching"
 
-    path_to_doc_data: str = "/home/martin/University/08_IRP/IR_Praktikum/data/wikipedia/testdata/raw"
-    path_to_doc_emb: str = "/home/martin/University/08_IRP/IR_Praktikum/data/test-data-martin"
-    path_to_batches = "/home/martin/University/08_IRP/IR_Praktikum/data/test-data-martin/batching"
-    path_to_representatives = "/home/martin/University/08_IRP/IR_Praktikum/data/test-data-martin/representatives"
+    # path_to_doc_data: str = "/home/martin/University/08_IRP/IR_Praktikum/data/wikipedia/testdata/raw"
+    # path_to_doc_emb: str = "/home/martin/University/08_IRP/IR_Praktikum/data/test-data-martin"
+    # path_to_batches = "/home/martin/University/08_IRP/IR_Praktikum/data/test-data-martin/batching"
+    # path_to_representatives = "/home/martin/University/08_IRP/IR_Praktikum/data/test-data-martin/representatives"
+    
+    path_to_doc_data = os.path.join(PWD, "data/wikipedia/split-data-no-disambiguation")
+    path_to_doc_emb = os.path.join(PWD, "../new_embeddings")
+    path_to_batches = os.path.join(PWD, "data/batches")
+    path_to_representatives = os.path.join(PWD, "data/representatives")
+    os.makedirs(path_to_representatives, exist_ok=True)
 
     i = sys.argv[1]
     categories = load_batch(path_to_batches, i)

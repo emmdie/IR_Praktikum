@@ -65,7 +65,7 @@ def load_doc_data_hpc(path):
     return combined_df
 
 def load_doc_embeddings_hpc(path):
-    pickle_files = [path + f"/wikipedia-text-data-no-disambiguation_{i}.pkl.gzip" for i in range(13)]
+    pickle_files = [path + f"/embeddings_{i}.pkl.gzip" for i in range(13)]
     print("pickle files")
     print(*pickle_files, sep="\n")
     df_list = [pd.read_pickle(file, compression='gzip') for file in pickle_files]

@@ -4,6 +4,10 @@ import pickle
 import pandas as pd
 from collections import defaultdict
 import re
+import os
+
+PWD=os.getcwd()
+
 
 def split_dict_into_batches(d: Dict, n_batches: int) -> List[Dict]:
     items = list(d.items())
@@ -57,7 +61,14 @@ def main(doc_data_dir: str, batch_saving_location: str, n_batches: int) -> None:
 
 if __name__ == "__main__":
     # doc_data_dir = "/home/martin/University/08_IRP/IR_Praktikum/data/wikipedia/split-data-no-disambiguation"
-    batch_saving_location = "/home/martin/University/08_IRP/IR_Praktikum/data/test-data-martin/batching"
-    doc_data_dir: str = "/home/martin/University/08_IRP/IR_Praktikum/data/wikipedia/testdata/raw"
-    n_batches = 20
+    #batch_saving_location = "/home/martin/University/08_IRP/IR_Praktikum/data/test-data-martin/batching"
+    #doc_data_dir: str = "/home/martin/University/08_IRP/IR_Praktikum/data/wikipedia/testdata/raw"
+    
+    batch_path= os.path.join(PWD, "data/batches")
+    os.makedirs(batch_path)
+    doc_data_path = os.path.join(PWD, "data/wikipedia/split-data-no-disambiguation")
+    batch_saving_location = batch_path
+    doc_data_dir: str = doc_data_path
+
+    n_batches = 1 
     main(doc_data_dir, batch_saving_location, n_batches)
