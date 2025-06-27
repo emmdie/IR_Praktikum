@@ -43,11 +43,14 @@ def compute_clustering(df_doc_emb: pd.DataFrame, categories: Dict[str, Set[str]]
         clustering[category] = defaultdict(list)
 
 
-        if len(doc_ids_in_category) > 8000:
-            print(f'{ctr:} {category} SKIPPED')
-            continue
-        else:
-            print(f'{ctr:} {category}')
+        # if len(doc_ids_in_category) > 8000:
+        #     print(f'{ctr:} {category} SKIPPED')
+        #     continue
+        # else:
+
+        if category in {"the", "is", "in", "and", "to", "a", "of", "that", "it", "on", "for", "with", "as", "was", "at", "by", "an"}:
+           continue
+        # print(f'{ctr:} {category}')
 
         docs_in_category = df_doc_emb.loc[list(doc_ids_in_category)]
         embeddings = list(map(torch.Tensor, docs_in_category.embedding))
