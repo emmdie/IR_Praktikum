@@ -73,7 +73,7 @@ def search(
             })
     results_df = pd.DataFrame(results).set_index('doc_id')
     results_df = rank(results_df, query, df_doc_emb)
-    return results_df
+    return results_df   
 
 def rank(results_df: pd.DataFrame, query: str, df_doc_emb) -> pd.DataFrame:
     """
@@ -130,7 +130,6 @@ def sbert_static_search(
     
     df_doc_data = load_doc_data(path_to_doc_data)
     df_doc_emb = load_doc_embeddings(path_to_doc_emb)
-    
     
     # LOADING
     print('SEARCHING...')

@@ -13,17 +13,11 @@ if __name__ == "__main__":
 
     df_doc_data = load_doc_data()
     df_doc_emb = load_doc_embeddings()
-
     print('Finished loading data')
 
     sbert_static_load(df_doc_data, df_doc_emb)    
     
-    # search_results = sbert_static_search(df_doc_data, df_doc_emb)
+    search_results = sbert_static_search(df_doc_data, df_doc_emb)
 
-    # show.doc_texts_clusterwise(search_results)
+    show.doc_texts_clusterwise(search_results)
 
-    # number_of_duplicates = len(search_results.index[search_results.index.duplicated()].unique())
-
-    # print(f'Exists document in several clusters: {search_results.index.has_duplicates}')
-    # print(f'Number of duplicates: {number_of_duplicates}')
-    
