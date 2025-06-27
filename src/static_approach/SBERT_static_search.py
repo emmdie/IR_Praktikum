@@ -1,4 +1,6 @@
 import math
+import os
+import sys
 import torch
 import pandas as pd
 import pathlib
@@ -126,7 +128,7 @@ def sbert_static_search(
     exactly_retrieve_num: bool = True,
     path_to_doc_data: str = "data/wikipedia/testdata/raw", 
     path_to_doc_emb: str = "data/test-data-martin", 
-    path_to_representatives: str = "data/static-approach"
+    path_to_representatives: str = "data/static-approach/" #representatives-hpc/repr_w_stopwords"
 ) -> pd.DataFrame:
     """
     Execute the static SBERT-based semantic search.
@@ -156,6 +158,8 @@ def sbert_static_search(
     print('Loading semantics...')
     representatives_loaded = load_pickle_gz(path_to_representatives, "representatives.pkl.gz")
     print('Semantics loaded')
+    categories = representatives_loaded.keys()
+    print(f"Hammer in categories: {"hammer" in categories}")
 
     if query not in representatives_loaded:
         print("Query not a word of the training collection! (wikipedia)!")
@@ -172,5 +176,26 @@ def sbert_static_search(
     return search_results
 
 if __name__ == "__main__":
-    results = sbert_static_search(query="hammer", num_docs_to_retrieve=100, exactly_retrieve_num=True)
-    show.doc_texts_clusterwise(results)
+    
+    ##### THIS SECTION HAS BEEN INCLUDED FOR EXECUTION ON HPC CLUSTER ############################
+    
+    # CHANGE THIS AS NEEDED
+    
+    PWD = os.getcwd() # current working directory
+
+    # This way you could pass arguments on execution
+    query = sys.argv[1] # Pass the query like this python /path/to/SBERT_static_search.py <query> 
+
+    path_to_doc_data = os.path.join(PWD, "data/wikipedia/split-data-no-disambiguation")
+    path_to_doc_emb = os.path.join(PWD, "../new_embeddings")
+    path_to_representatives = os.path.join(PWD, "data/representatives")
+    ##############################################################################################
+
+    results = sbert_static_search(
+        query=query, 
+        num_docs_to_retrieve=100, 
+        exactly_retrieve_num=True,
+        path_to_doc_data=path_to_doc_data,
+        path_to_doc_emb=path_to_doc_emb,
+        path_to_representatives=path_to_representatives
+    )

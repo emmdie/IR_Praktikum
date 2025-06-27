@@ -29,8 +29,8 @@ def build_inverted_index(df_text : pd.DataFrame) -> Dict[str, Set[str]]:
         row_string = f'{row.label} {row.text}'
         for word in tokenize(row_string, translation_table):
             word_to_strings[word].add(d_id)
-        if i == 5000:
-            return word_to_strings
+        # if i == 5000:
+        #     return word_to_strings
     return word_to_strings
 
 def compute_categories(docs: pd.DataFrame) -> Dict[str, Set[str]]:
@@ -46,8 +46,7 @@ def compute_categories(docs: pd.DataFrame) -> Dict[str, Set[str]]:
     return build_inverted_index(docs)
 
 def main(doc_data_dir: str, batch_saving_location: str, n_batches: int) -> None:
-    df_doc_data = load_doc_data_hpc(doc_data_dir)
-    # df_doc_data = load_doc_data(doc_data_dir)
+    df_doc_data = load_doc_data(doc_data_dir)
     print(df_doc_data)
 
     categories = compute_categories(df_doc_data)
@@ -65,10 +64,9 @@ if __name__ == "__main__":
     #doc_data_dir: str = "/home/martin/University/08_IRP/IR_Praktikum/data/wikipedia/testdata/raw"
     
     batch_path= os.path.join(PWD, "data/batches")
-    os.makedirs(batch_path)
-    doc_data_path = os.path.join(PWD, "data/wikipedia/split-data-no-disambiguation")
+    os.makedirs(batch_path,exist_ok=True)
     batch_saving_location = batch_path
-    doc_data_dir: str = doc_data_path
+    doc_data_dir = os.path.join(PWD, "data/wikipedia/split-data-no-disambiguation")
 
     n_batches = 1 
     main(doc_data_dir, batch_saving_location, n_batches)

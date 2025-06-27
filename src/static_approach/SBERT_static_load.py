@@ -11,7 +11,7 @@ import pathlib
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
 
 from inverted_index import build_inverted_index
-from src.clustering_methods import HDBClustering
+from clustering_methods import HDBClustering
 from saving_and_loading import save_pickle_gz
 from load_docs import load_doc_data, load_doc_embeddings
 
@@ -65,7 +65,7 @@ def compute_clustering(df_doc_emb: pd.DataFrame, categories: Dict[str, Set[str]]
             first_iteration = True
             while num_clusters > 10:
                 num_clusters, clusters = HDBClustering(embeddings, min_cluster_size=min_cluster_size, cluster_selection_epsilon=cluster_selection_epsilon, alpha=alpha)
-                print(f'Num clusters "{category}": {num_clusters}')
+                # print(f'Num clusters "{category}": {num_clusters}')
                 if num_clusters > 100:
                     cluster_selection_epsilon += 0.1
                 elif num_clusters < 20:
@@ -83,7 +83,7 @@ def compute_clustering(df_doc_emb: pd.DataFrame, categories: Dict[str, Set[str]]
                     alpha += 0.1
                     stuck_counter = 0
                     # input(f"Alpha increased to {alpha}!")
-                    print(f"Alpha increased to {alpha}!")
+                    # print(f"Alpha increased to {alpha}!")
                 
                 # If giant jump in num_cluster (like 18 to 3), undo reducing alpha
                 # A giant jump only occurred after alpha reduction for values < 20
@@ -188,4 +188,21 @@ def sbert_static_load(
 
 if __name__ == "__main__":
 
-    sbert_static_load()
+    # If running this locally (not hpc) consider uncommenting if i == 5000: return word_to_strings
+
+    ##### THIS SECTION HAS BEEN INCLUDED FOR EXECUTION ON HPC CLUSTER ############################
+
+    # CHANGE THIS AS NEEDED
+
+    PWD = os.getcwd() # current working directory
+
+    path_to_doc_data = os.path.join(PWD, "data/wikipedia/split-data-no-disambiguation")
+    path_to_doc_emb = os.path.join(PWD, "../new_embeddings")
+    path_to_representatives = os.path.join(PWD, "data/representatives")
+    ##############################################################################################
+
+    sbert_static_load(
+        path_to_doc_data=path_to_doc_data, 
+        path_to_doc_emb=path_to_doc_emb, 
+        path_to_representatives=path_to_representatives
+    )
