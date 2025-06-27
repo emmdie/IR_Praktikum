@@ -37,7 +37,6 @@ class SearchEngineFrontend(App):
         yield Header()
         yield Footer()
         yield SearchBar()
-        yield StatsBar()
         yield VerticalScroll(id="results_container")
 
     def action_toggle_dark(self) -> None:
@@ -92,16 +91,9 @@ class SearchEngineFrontend(App):
             
         # results_df = fake_results_generator.generate_fake_results_df()
         results_df = df_prepocessing.assign_cluster_colors(results)
-        self.stats_bar: StatsBar = self.query_one(StatsBar)
         self.populate_results_from_dict(results_df)
         
-         # Dummy stat updates for placeholder purposes
-        self.stats_bar.update_stats({
-            "top_k": "10",
-            "swap_count": "42",
-            "latency": "128ms",
-            "doc_count": str(len(results_df))
-        })
+        
     def clear_results(self) -> None:
         """Clear all results from the UI"""
         results_container: Widget = self.query_one("#results_container")
@@ -181,22 +173,3 @@ class ResultField(Vertical):
             classes="result-frame"
         )
         
-class StatsBar(HorizontalGroup):
-    def __init__(self) -> None:
-        super().__init__()
-        self.top_k_label = Label("Top-K: ---", id="top_k")
-        self.swap_count_label = Label("Swaps: ---", id="swap_count")
-        self.latency_label = Label("Latency: ---", id="latency")
-        self.doc_count_label = Label("Docs: ---", id="doc_count")
-
-    def compose(self) -> ComposeResult:
-        yield self.top_k_label
-        yield self.swap_count_label
-        yield self.latency_label
-        yield self.doc_count_label
-
-    def update_stats(self, stats: Dict[str, str]) -> None:
-        self.top_k_label.update(f"Top-K: {stats.get('top_k', '---')}")
-        self.swap_count_label.update(f"Swaps: {stats.get('swap_count', '---')}")
-        self.latency_label.update(f"Latency: {stats.get('latency', '---')}")
-        self.doc_count_label.update(f"Docs: {stats.get('doc_count', '---')}")
