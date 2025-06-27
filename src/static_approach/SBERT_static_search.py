@@ -1,3 +1,4 @@
+import math
 import torch
 import pandas as pd
 import pathlib
@@ -15,6 +16,7 @@ def find_category(query: str, categories: Any) -> str:
     Determine the matching category for a query.
     For now, exact matching is used.
     """
+
     return query
 
 def retrieve_top_k(
@@ -36,7 +38,8 @@ def search(
     query: str,
     df_doc_emb: pd.DataFrame,
     representatives: Dict[str, Dict[int, Any]],
-    k: int = 6
+    num_docs_to_retrieve: int,
+    exactly_retrieve_num: bool
 ) -> pd.DataFrame:
     """
     Run semantic search using cluster centroids and return top-matching documents.
@@ -61,18 +64,25 @@ def search(
     results = []
 
     # NOTE Documents may appear in multiple clusters due to overlapping semantics
+    num_categories = len(representatives[category].keys())
+    num_docs_per_cluster = math.ceil(num_docs_to_retrieve / num_categories)
+    num_docs_per_cluster = max(num_docs_per_cluster, 1)
 
     # retrieve top_k documents for each semantic
     for cluster_label, query_semantic_embedding in query_semantics.items():
-        top_ids = retrieve_top_k(query_semantic_embedding, doc_embeddings, doc_ids, k)
+        top_ids = retrieve_top_k(query_semantic_embedding, doc_embeddings, doc_ids, k=num_docs_per_cluster)
         for doc_id in top_ids:
             results.append({
                 'doc_id': doc_id,
-                # 'category': category,
                 'cluster': cluster_label
             })
     results_df = pd.DataFrame(results).set_index('doc_id')
     results_df = rank(results_df, query, df_doc_emb)
+
+    # If not only retrieve at least <num_docs_to_retrieve>, but also no more -> exactly num_docs_to_retrieve
+    if exactly_retrieve_num:
+        results_df = results_df.iloc[:num_docs_to_retrieve]
+
     return results_df   
 
 def rank(results_df: pd.DataFrame, query: str, df_doc_emb) -> pd.DataFrame:
@@ -98,6 +108,8 @@ def rank(results_df: pd.DataFrame, query: str, df_doc_emb) -> pd.DataFrame:
     results_df = results_df.copy()
     results_df['similarity_score'] = cos_scores
     results_df['new_ranking'] = cos_scores.argsort(descending=True).argsort().add(1).numpy()
+
+    results_df = results_df.sort_values('new_ranking')
     
     return results_df
 
@@ -109,7 +121,8 @@ def add_doc_texts(results_df: pd.DataFrame, df_doc_data: pd.DataFrame) -> pd.Dat
 
 def sbert_static_search(
     query: str = "hammer",
-    retrieve_per_cluster: int = 5,
+    num_docs_to_retrieve: int = 5,
+    exactly_retrieve_num: bool = True,
     path_to_doc_data: str = "data/wikipedia/testdata/raw", 
     path_to_doc_emb: str = "data/test-data-martin", 
     path_to_representatives: str = "data/static-approach"
@@ -122,12 +135,18 @@ def sbert_static_search(
     - Run semantic search
     - Join document texts
     """ 
+    if num_docs_to_retrieve <= 0:
+        print(f"Number of documents to retrieve must be be greater zero!")
+        return pd.DataFrame()
+
+    # Compute absolute paths, using project root (project root computed based on file location)
     project_root = pathlib.Path(__file__).parents[2]
     
     path_to_doc_data = (project_root / path_to_doc_data).as_posix()
     path_to_doc_emb = (project_root / path_to_doc_emb).as_posix()
     path_to_representatives = (project_root / path_to_representatives).as_posix()
     
+    # load doc data and embedding dataframes - absolute paths as input
     df_doc_data = load_doc_data(path_to_doc_data)
     df_doc_emb = load_doc_embeddings(path_to_doc_emb)
     
@@ -137,9 +156,14 @@ def sbert_static_search(
     representatives_loaded = load_pickle_gz(path_to_representatives, "representatives.pkl.gz")
     print('Semantics loaded')
 
+    if query not in representatives_loaded:
+        print("Query not a word of the training collection! (wikipedia)!")
+        return pd.DataFrame()
+
+
     # SEARCHING
     print('Retrieving documents...')
-    search_results = search(query, df_doc_emb, representatives_loaded, retrieve_per_cluster)
+    search_results = search(query, df_doc_emb, representatives_loaded, num_docs_to_retrieve, exactly_retrieve_num)
     search_results = add_doc_texts(search_results, df_doc_data)
     print(f'Search results: {search_results}')
 
@@ -149,4 +173,4 @@ def sbert_static_search(
 
 if __name__ == "__main__":
     
-    sbert_static_search(query="car", retrieve_per_cluster=6)
+    sbert_static_search(query="hammer", num_docs_to_retrieve=100, exactly_retrieve_num=True)
