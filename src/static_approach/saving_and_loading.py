@@ -15,28 +15,27 @@ def save_msgpack(file, file_path="./representatives.msgpack"):
 
 # Pickle
 def save_pickle(file, directory=".", file_name="representatives.pkl"):
-    file_path = directory + "/" + file_name
+    file_path = directory.rstrip("/") + "/" + file_name
     print(f"Saving pickle file to: {file_path}")
     with open(file_path, "wb") as f:
         pickle.dump(file, f, protocol=pickle.HIGHEST_PROTOCOL)
 
 def load_pickle(directory=".", file_name="representatives.pkl"):
-    file_path = directory + "/" + file_name
+    file_path = directory.rstrip("/") + "/" + file_name
     print(f"Trying to load file from: {file_path}")
     with open(file_path, "rb") as f:
         file = pickle.load(f)
         return file
     
 # Pickle Gzip
-
 def save_pickle_gz(file, directory=".", file_name="representatives.pkl"):
-    file_path = directory + "/" + file_name
+    file_path = directory.rstrip("/") + "/" + file_name
     print(f"Saving pickle file to: {file_path}")
     with gzip.open(file_path, "wb") as f:
         pickle.dump(file, f, protocol=pickle.HIGHEST_PROTOCOL)
 
 def load_pickle_gz(directory=".", file_name="representatives.pkl"):
-    file_path = directory + "/" + file_name
+    file_path = directory.rstrip("/") + "/" + file_name
     print(f"Trying to load file from: {file_path}")
     with gzip.open(file_path, "rb") as f:
         file = pickle.load(f)

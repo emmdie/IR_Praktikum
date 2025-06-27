@@ -1,4 +1,3 @@
-import re
 from typing import Dict, Set
 import numpy as np
 import torch
@@ -6,7 +5,7 @@ import pickle
 import pandas as pd
 from sklearn.cluster import HDBSCAN
 from collections import defaultdict
-from load_docs import *
+from load_docs import load_doc_data_hpc, load_doc_embeddings_hpc
 from saving_and_loading import *
 import sys
 import os

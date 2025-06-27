@@ -7,6 +7,7 @@ from typing import Dict, List, Any
 
 from saving_and_loading import load_pickle_gz
 from load_docs import load_doc_data, load_doc_embeddings
+import show
 
 model = SentenceTransformer("all-mpnet-base-v2")
 
@@ -14,9 +15,9 @@ model = SentenceTransformer("all-mpnet-base-v2")
 def find_category(query: str, categories: Any) -> str:
     """
     Determine the matching category for a query.
-    For now, exact matching is used.
+    For now, exact matching is used, because there is category for each token found in the training collection.
+    The collection currently used is wikipedia.
     """
-
     return query
 
 def retrieve_top_k(
@@ -68,7 +69,7 @@ def search(
     num_docs_per_cluster = math.ceil(num_docs_to_retrieve / num_categories)
     num_docs_per_cluster = max(num_docs_per_cluster, 1)
 
-    # retrieve top_k documents for each semantic
+    # Retrieve top_k documents for each semantic
     for cluster_label, query_semantic_embedding in query_semantics.items():
         top_ids = retrieve_top_k(query_semantic_embedding, doc_embeddings, doc_ids, k=num_docs_per_cluster)
         for doc_id in top_ids:
@@ -79,8 +80,8 @@ def search(
     results_df = pd.DataFrame(results).set_index('doc_id')
     results_df = rank(results_df, query, df_doc_emb)
 
-    # If not only retrieve at least <num_docs_to_retrieve>, but also no more -> exactly num_docs_to_retrieve
     if exactly_retrieve_num:
+        # Not only retrieve at least <num_docs_to_retrieve> documents, but exactly <num_docs_to_retrieve>
         results_df = results_df.iloc[:num_docs_to_retrieve]
 
     return results_df   
@@ -146,7 +147,7 @@ def sbert_static_search(
     path_to_doc_emb = (project_root / path_to_doc_emb).as_posix()
     path_to_representatives = (project_root / path_to_representatives).as_posix()
     
-    # load doc data and embedding dataframes - absolute paths as input
+    # Load doc data and embedding dataframes - absolute paths as input
     df_doc_data = load_doc_data(path_to_doc_data)
     df_doc_emb = load_doc_embeddings(path_to_doc_emb)
     
@@ -160,7 +161,6 @@ def sbert_static_search(
         print("Query not a word of the training collection! (wikipedia)!")
         return pd.DataFrame()
 
-
     # SEARCHING
     print('Retrieving documents...')
     search_results = search(query, df_doc_emb, representatives_loaded, num_docs_to_retrieve, exactly_retrieve_num)
@@ -172,5 +172,5 @@ def sbert_static_search(
     return search_results
 
 if __name__ == "__main__":
-    
-    sbert_static_search(query="hammer", num_docs_to_retrieve=100, exactly_retrieve_num=True)
+    results = sbert_static_search(query="hammer", num_docs_to_retrieve=100, exactly_retrieve_num=True)
+    show.doc_texts_clusterwise(results)
