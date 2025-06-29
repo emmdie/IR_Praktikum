@@ -1,6 +1,6 @@
 import os
 import sys
-import torch
+from sklearn.decomposition import PCA
 import numpy as np
 import pandas as pd
 from collections import defaultdict
@@ -14,6 +14,10 @@ from inverted_index import build_inverted_index
 from clustering_methods import HDBClustering
 from saving_and_loading import save_pickle_gz
 from load_docs import load_doc_data, load_doc_embeddings
+
+pca_enabled = True
+stop_words_excluded = False
+skip_large_categories = True
 
 def compute_categories(docs: pd.DataFrame) -> Dict[str, Set[str]]:
     """
@@ -43,17 +47,21 @@ def compute_clustering(df_doc_emb: pd.DataFrame, categories: Dict[str, Set[str]]
         clustering[category] = defaultdict(list)
 
 
-        # if len(doc_ids_in_category) > 8000:
-        #     print(f'{ctr:} {category} SKIPPED')
-        #     continue
-        # else:
+        if skip_large_categories and len(doc_ids_in_category) > 8000:
+            print(f'{ctr:} {category} SKIPPED')
+            continue
 
-        if category in {"the", "is", "in", "and", "to", "a", "of", "that", "it", "on", "for", "with", "as", "was", "at", "by", "an"}:
+        if stop_words_excluded and category in {"the", "is", "in", "and", "to", "a", "of", "that", "it", "on", "for", "with", "as", "was", "at", "by", "an"}:
            continue
-        # print(f'{ctr:} {category}')
+        
+        print(f'{ctr:} {category}')
 
         docs_in_category = df_doc_emb.loc[list(doc_ids_in_category)]
-        embeddings = np.array(docs_in_category.embedding.tolist())
+        
+        if pca_enabled:
+            embeddings = np.array(docs_in_category.embedding_pca.tolist())
+        else:
+            embeddings = np.array(docs_in_category.embedding.tolist())
         
         # min_cluster_size * num_clusters  = len(doc_ids_in_category)
         max_num_clusters = len(doc_ids_in_category) # 10 # maximum number of clusters
@@ -68,7 +76,7 @@ def compute_clustering(df_doc_emb: pd.DataFrame, categories: Dict[str, Set[str]]
             first_iteration = True
             while num_clusters > 10:
                 num_clusters, clusters = HDBClustering(embeddings, min_cluster_size=min_cluster_size, cluster_selection_epsilon=cluster_selection_epsilon, alpha=alpha)
-                # print(f'Num clusters "{category}": {num_clusters}')
+                print(f'Num clusters "{category}": {num_clusters}')
                 if num_clusters > 100:
                     cluster_selection_epsilon += 0.1
                 elif num_clusters < 20:
@@ -164,6 +172,13 @@ def sbert_static_load(
     df_doc_data = load_doc_data(path_to_doc_data)
     df_doc_emb = load_doc_embeddings(path_to_doc_emb)
 
+    if pca_enabled:
+        # Compute PCA for each vector - discarding normal embeddings for the sake of memory
+        embeddings = np.array(df_doc_emb.embedding.tolist())
+        embeddings_pca = PCA(n_components=0.95).fit_transform(embeddings)
+        df_doc_emb['embedding_pca'] = embeddings_pca.tolist()
+        df_doc_emb.drop('embedding', axis=1)
+
     print(df_doc_data)
     print(df_doc_emb)
 
@@ -191,21 +206,23 @@ def sbert_static_load(
 
 if __name__ == "__main__":
 
-    # If running this locally (not hpc) consider uncommenting if i == 5000: return word_to_strings
+    # # If running this locally (not hpc) consider uncommenting if i == 5000: return word_to_strings
 
-    ##### THIS SECTION HAS BEEN INCLUDED FOR EXECUTION ON HPC CLUSTER ############################
+    # ##### THIS SECTION HAS BEEN INCLUDED FOR EXECUTION ON HPC CLUSTER ############################
 
-    # CHANGE THIS AS NEEDED
+    # # CHANGE THIS AS NEEDED
 
-    PWD = os.getcwd() # current working directory
+    # PWD = os.getcwd() # current working directory
 
-    path_to_doc_data = os.path.join(PWD, "data/wikipedia/split-data-no-disambiguation")
-    path_to_doc_emb = os.path.join(PWD, "../new_embeddings")
-    path_to_representatives = os.path.join(PWD, "data/representatives")
-    ##############################################################################################
+    # path_to_doc_data = os.path.join(PWD, "data/wikipedia/split-data-no-disambiguation")
+    # path_to_doc_emb = os.path.join(PWD, "../new_embeddings")
+    # path_to_representatives = os.path.join(PWD, "data/representatives")
+    # ##############################################################################################
 
-    sbert_static_load(
-        path_to_doc_data=path_to_doc_data, 
-        path_to_doc_emb=path_to_doc_emb, 
-        path_to_representatives=path_to_representatives
-    )
+    # sbert_static_load(
+    #     path_to_doc_data=path_to_doc_data, 
+    #     path_to_doc_emb=path_to_doc_emb, 
+    #     path_to_representatives=path_to_representatives
+    # )
+
+    sbert_static_load()
