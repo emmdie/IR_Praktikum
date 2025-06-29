@@ -53,7 +53,7 @@ def compute_clustering(df_doc_emb: pd.DataFrame, categories: Dict[str, Set[str]]
         # print(f'{ctr:} {category}')
 
         docs_in_category = df_doc_emb.loc[list(doc_ids_in_category)]
-        embeddings = list(map(torch.Tensor, docs_in_category.embedding))
+        embeddings = np.array(docs_in_category.embedding.tolist())
         
         # min_cluster_size * num_clusters  = len(doc_ids_in_category)
         max_num_clusters = len(doc_ids_in_category) # 10 # maximum number of clusters

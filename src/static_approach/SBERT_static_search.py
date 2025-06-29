@@ -5,10 +5,11 @@ import torch
 import pandas as pd
 import pathlib
 from sentence_transformers import util, SentenceTransformer
-from typing import Dict, List, Any
+from typing import Dict, List, Any, Set
 
 from saving_and_loading import load_pickle_gz
 from load_docs import load_doc_data, load_doc_embeddings
+from word_matching import *
 import show
 
 model = SentenceTransformer("all-mpnet-base-v2")
@@ -32,18 +33,35 @@ representatives_loaded = load_pickle_gz(path_to_representatives, "representative
 df_doc_data = load_doc_data(path_to_doc_data) if path_to_doc_data else None
 df_doc_emb = load_doc_embeddings(path_to_doc_emb) if path_to_doc_emb else None
 
-if representatives_loaded and df_doc_data and df_doc_emb:
+if representatives_loaded and df_doc_data is not None and df_doc_emb is not None:
     print("Data loaded.")
+else:
+    print("Failed to print some of the data")
 
 
 # currently exact match
-def find_category(query: str, categories: Any) -> str:
+def find_category(query: str, categories: Set[str], fuzzy_threshold=85, sim_threshold=0.6, word_embeddings_cache=None) -> str:
     """
     Determine the matching category for a query.
     For now, exact matching is used, because there is category for each token found in the training collection.
     The collection currently used is wikipedia.
     """
-    return query
+
+    # 1. Exact match
+    if query in categories:
+        return query
+
+    # 2. Fuzzy match
+    fuzzy_word = fuzzy_match(query, categories, fuzzy_threshold)
+    if fuzzy_word:
+        return fuzzy_word
+
+    # 3. Embedding match
+    semantic_word = embedding_match(query, categories, model, sim_threshold, word_embeddings_cache)
+    if semantic_word:
+        return semantic_word
+
+    return None
 
 def retrieve_top_k(
     query_embedding: torch.Tensor,
@@ -80,7 +98,12 @@ def search(
         pd.DataFrame: Ranked document matches with category and cluster metadata.
     """
     # Find category
-    category = find_category(query, representatives.keys())
+    category = find_category(query, set(representatives.keys()))
+    
+    # Case that no category was found. This is the only case where this function might return None
+    if category is None:
+        return None
+
     query_semantics = representatives[category]
     
     # Load all embeddings
@@ -177,13 +200,14 @@ def sbert_static_search(
         print("Number of documents to retrieve must be greater than zero!")
         return pd.DataFrame()
 
-    if query not in representatives:
-        print("Query not found in representatives!")
-        return pd.DataFrame()
-
     search_results = search(query, doc_emb, representatives, num_docs_to_retrieve, exactly_retrieve_num)
-    search_results = add_doc_texts(search_results, doc_data)
-    return search_results
+
+    if search_results is None:
+        return pd.DataFrame()
+    else:
+        search_results = add_doc_texts(search_results, doc_data)
+        return search_results
+    
 
 
 

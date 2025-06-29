@@ -27,16 +27,14 @@ def AgglomerativeClustering(doc_embeddings, similarity_threshold=.75):
 
     return num_clusters, labels
 
-def HDBClustering(doc_embeddings, min_cluster_size=2, cluster_selection_epsilon=0.0, alpha=1.0):
-    # Convert to numpy array for clustering
-    embeddings = torch.stack(doc_embeddings).numpy()
+def HDBClustering(doc_embeddings: np.ndarray, min_cluster_size: int=2, cluster_selection_epsilon=0.0, alpha=1.0):
 
     # min cluster size is no less then two
     min_cluster_size = max(2, min_cluster_size)
 
     # Cluster using HDBScan
     clusterer = HDBSCAN(metric='cosine', min_cluster_size=min_cluster_size, min_samples=1, cluster_selection_epsilon=cluster_selection_epsilon, alpha=alpha)
-    clusterer.fit(embeddings)
+    clusterer.fit(doc_embeddings)
 
     # Eliminate the unclustered elements
     labels = clusterer.labels_
