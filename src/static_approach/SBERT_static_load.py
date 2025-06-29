@@ -15,9 +15,16 @@ from clustering_methods import HDBClustering
 from saving_and_loading import save_pickle_gz
 from load_docs import load_doc_data, load_doc_embeddings
 
-pca_enabled = True
-stop_words_excluded = False
-skip_large_categories = True
+# Config
+SAMPLING_FRACTION = 1.0  # set between 0 and 1
+SKIP_LARGE_CATEGORIES = False
+STOP_WORDS_EXCLUDED = True
+PCA_ENABLED = True
+CLUSTERING_METRIC = 'euclidean'
+HPC_EXECUTION = True
+
+# Relevant if SKIP_LARGE_CATEGORIES is True
+LARGE_CATEGORY_CONST = 8000
 
 def compute_categories(docs: pd.DataFrame) -> Dict[str, Set[str]]:
     """
@@ -47,18 +54,20 @@ def compute_clustering(df_doc_emb: pd.DataFrame, categories: Dict[str, Set[str]]
         clustering[category] = defaultdict(list)
 
 
-        if skip_large_categories and len(doc_ids_in_category) > 8000:
-            print(f'{ctr:} {category} SKIPPED')
+        if SKIP_LARGE_CATEGORIES and len(doc_ids_in_category) > LARGE_CATEGORY_CONST:
+            if not HPC_EXECUTION:
+                print(f'{ctr:} {category} SKIPPED')
             continue
 
-        if stop_words_excluded and category in {"the", "is", "in", "and", "to", "a", "of", "that", "it", "on", "for", "with", "as", "was", "at", "by", "an"}:
+        if STOP_WORDS_EXCLUDED and category in {"the", "is", "in", "and", "to", "a", "of", "that", "it", "on", "for", "with", "as", "was", "at", "by", "an"}:
            continue
         
-        print(f'{ctr:} {category}')
+        if not HPC_EXECUTION:
+            print(f'{ctr:} {category}')
 
         docs_in_category = df_doc_emb.loc[list(doc_ids_in_category)]
         
-        if pca_enabled:
+        if PCA_ENABLED:
             embeddings = np.array(docs_in_category.embedding_pca.tolist())
         else:
             embeddings = np.array(docs_in_category.embedding.tolist())
@@ -71,12 +80,22 @@ def compute_clustering(df_doc_emb: pd.DataFrame, categories: Dict[str, Set[str]]
             cluster_selection_epsilon = 0.4
             alpha = 1
             num_clusters = 11 # something greater 10
-            prev_num_clusters = num_clusters + 1
+            prev_num_clusters = num_clusters + 1 # something greater than pre_num_clusters
             stuck_counter = 0
             first_iteration = True
             while num_clusters > 10:
-                num_clusters, clusters = HDBClustering(embeddings, min_cluster_size=min_cluster_size, cluster_selection_epsilon=cluster_selection_epsilon, alpha=alpha)
-                print(f'Num clusters "{category}": {num_clusters}')
+                num_clusters, clusters = HDBClustering(
+                    embeddings, 
+                    metric=CLUSTERING_METRIC,
+                    cluster_selection_epsilon=cluster_selection_epsilon, 
+                    alpha=alpha,
+                    min_cluster_size=min_cluster_size
+                    )
+                
+                if not HPC_EXECUTION:
+                    print(f'Num clusters "{category}": {num_clusters}')
+                
+                # Increase epsilon if cluster number way too high, and less if cluster size almost right
                 if num_clusters > 100:
                     cluster_selection_epsilon += 0.1
                 elif num_clusters < 20:
@@ -96,8 +115,7 @@ def compute_clustering(df_doc_emb: pd.DataFrame, categories: Dict[str, Set[str]]
                     # input(f"Alpha increased to {alpha}!")
                     # print(f"Alpha increased to {alpha}!")
                 
-                # If giant jump in num_cluster (like 18 to 3), undo reducing alpha
-                # A giant jump only occurred after alpha reduction for values < 20
+                # Undo giant jumps (like 18 to 3) by undoing reduction of alpha
                 if num_clusters <= 7 and prev_num_clusters - num_clusters >= 7 and not first_iteration:
                     # Don't reduce alpha, but epsilon instead
                     alpha -= 0.1
@@ -163,17 +181,22 @@ def sbert_static_load(
     - Saves the representatives to disk
     """
     print('Loading data')
-    project_root = pathlib.Path(__file__).parents[2]
-    
-    path_to_doc_data = (project_root / path_to_doc_data).as_posix()
-    path_to_doc_emb = (project_root / path_to_doc_emb).as_posix()
-    path_to_representatives = (project_root / path_to_representatives).as_posix()
-    
-    df_doc_data = load_doc_data(path_to_doc_data)
-    df_doc_emb = load_doc_embeddings(path_to_doc_emb)
+    if not HPC_EXECUTION:
+        project_root = pathlib.Path(__file__).parents[2]
+        
+        path_to_doc_data = (project_root / path_to_doc_data).as_posix()
+        path_to_doc_emb = (project_root / path_to_doc_emb).as_posix()
+        path_to_representatives = (project_root / path_to_representatives).as_posix()
+        
+        df_doc_data = load_doc_data(path_to_doc_data)
+        df_doc_emb = load_doc_embeddings(path_to_doc_emb)
 
-    if pca_enabled:
-        # Compute PCA for each vector - discarding normal embeddings for the sake of memory
+    # Only use subset of training set to build categories
+    if SAMPLING_FRACTION > 0 and SAMPLING_FRACTION < 1:
+        df_doc_data = df_doc_data.sample(frac=SAMPLING_FRACTION)
+
+    # Compute PCA for each vector - discarding normal embeddings for the sake of memory
+    if PCA_ENABLED:
         embeddings = np.array(df_doc_emb.embedding.tolist())
         embeddings_pca = PCA(n_components=0.95).fit_transform(embeddings)
         df_doc_emb['embedding_pca'] = embeddings_pca.tolist()
@@ -201,28 +224,32 @@ def sbert_static_load(
     # 4: Persist representatives
     save_pickle_gz(representatives, path_to_representatives, "representatives.pkl.gz")
 
-    print('Loading Phase finished')
+    print('Loading phase finished')
 
 
 if __name__ == "__main__":
 
-    # # If running this locally (not hpc) consider uncommenting if i == 5000: return word_to_strings
+    if HPC_EXECUTION:
+        ##### THIS SECTION HAS BEEN INCLUDED FOR EXECUTION ON HPC CLUSTER ############################
 
-    # ##### THIS SECTION HAS BEEN INCLUDED FOR EXECUTION ON HPC CLUSTER ############################
+        # CHANGE THIS AS NEEDED
 
-    # # CHANGE THIS AS NEEDED
+        PWD = os.getcwd() # current working directory
 
-    # PWD = os.getcwd() # current working directory
+        path_to_doc_data = os.path.join(PWD, "data/wikipedia/split-data-no-disambiguation")
+        path_to_doc_emb = os.path.join(PWD, "../new_embeddings")
+        path_to_representatives = os.path.join(PWD, "data/representatives")
+        ##############################################################################################
 
-    # path_to_doc_data = os.path.join(PWD, "data/wikipedia/split-data-no-disambiguation")
-    # path_to_doc_emb = os.path.join(PWD, "../new_embeddings")
-    # path_to_representatives = os.path.join(PWD, "data/representatives")
-    # ##############################################################################################
-
-    # sbert_static_load(
-    #     path_to_doc_data=path_to_doc_data, 
-    #     path_to_doc_emb=path_to_doc_emb, 
-    #     path_to_representatives=path_to_representatives
-    # )
-
-    sbert_static_load()
+        sbert_static_load(
+            path_to_doc_data=path_to_doc_data, 
+            path_to_doc_emb=path_to_doc_emb, 
+            path_to_representatives=path_to_representatives
+        )
+    else:
+        # If running this locally (not hpc) consider 
+        #   - uncommenting (in inverted_index.py) if i == 5000: return word_to_strings
+        #   - setting SKIP_LARGE_CATEGORIES to true
+        # 
+        # This call uses default paths
+        sbert_static_load()
