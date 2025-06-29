@@ -2,25 +2,28 @@ import msgpack
 import pickle
 import gzip
 
+"""
+    This file is dedicated for simple wrappers on loading and saving files
+"""
 # MessagePack
-def load_msgpack(file_path="./representatives.msgpack"):
+def load_msgpack(file_path):
     with open(file_path, "rb") as f:
         file = msgpack.unpackb(f.read(), raw=False)
         return file
 
-def save_msgpack(file, file_path="./representatives.msgpack"):
+def save_msgpack(file, file_path):
     with open(file_path, "wb") as f:
         packed = msgpack.packb(file, use_bin_type=True)
         f.write(packed)
 
 # Pickle
-def save_pickle(file, directory=".", file_name="representatives.pkl"):
+def save_pickle(file, directory, file_name):
     file_path = directory.rstrip("/") + "/" + file_name
     print(f"Saving pickle file to: {file_path}")
     with open(file_path, "wb") as f:
         pickle.dump(file, f, protocol=pickle.HIGHEST_PROTOCOL)
 
-def load_pickle(directory=".", file_name="representatives.pkl"):
+def load_pickle(directory, file_name):
     file_path = directory.rstrip("/") + "/" + file_name
     print(f"Trying to load file from: {file_path}")
     with open(file_path, "rb") as f:
@@ -28,7 +31,7 @@ def load_pickle(directory=".", file_name="representatives.pkl"):
         return file
     
 # Pickle Gzip
-def save_pickle_gz(file, directory=".", file_name="representatives.pkl"):
+def save_pickle_gz(file, directory, file_name="representatives.pkl"):
     file_path = directory.rstrip("/") + "/" + file_name
     print(f"Saving pickle file to: {file_path}")
     with gzip.open(file_path, "wb") as f:
@@ -37,6 +40,10 @@ def save_pickle_gz(file, directory=".", file_name="representatives.pkl"):
 def load_pickle_gz(directory=".", file_name="representatives.pkl"):
     file_path = directory.rstrip("/") + "/" + file_name
     print(f"Trying to load file from: {file_path}")
-    with gzip.open(file_path, "rb") as f:
-        file = pickle.load(f)
-        return file
+    try:
+        with gzip.open(file_path, "rb") as f:
+            file = pickle.load(f)
+            return file
+    except Exception as e:
+        print(f"Failed to load {file_path}: {e}")
+        return None

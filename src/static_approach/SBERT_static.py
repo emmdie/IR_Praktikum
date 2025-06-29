@@ -3,16 +3,14 @@ import os, sys
 # Add project root to sys.path
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
 
-from src.static_approach.saving_and_loading import load_pickle
-from load_docs import load_doc_data, load_doc_embeddings
 import show
 from SBERT_static_load import sbert_static_load
 from SBERT_static_search import sbert_static_search
 
 if __name__ == "__main__":
     """
-    Configuration is using default parameters of functions. 
-    Ensure that the files are in the respective directories or pass the directories where your files are located.
+        Configuration is using default values of function arguments. 
+        Ensure that the files are in the respective directories or pass the directories where your files are located.
     """
     # Given documents and it's embeddings 
     # compute the semantics of each word found in the documents and save it (representatives.pkl)

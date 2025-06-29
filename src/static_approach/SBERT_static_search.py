@@ -13,6 +13,29 @@ import show
 
 model = SentenceTransformer("all-mpnet-base-v2")
 
+# LOAD needed data
+# Default paths relative to project root
+DEFAULT_DOC_DATA_PATH = "data/wikipedia/testdata/raw"
+DEFAULT_DOC_EMB_PATH = "data/test-data-martin"
+DEFAULT_REPRESENTATIVES_PATH = "data/static-approach/"
+
+# Compute absolute paths at module import
+project_root = pathlib.Path(__file__).parents[2]
+path_to_doc_data = (project_root / DEFAULT_DOC_DATA_PATH).as_posix()
+path_to_doc_emb = (project_root / DEFAULT_DOC_EMB_PATH).as_posix()
+path_to_representatives = (project_root / DEFAULT_REPRESENTATIVES_PATH).as_posix()
+
+# Load everything eagerly, once
+# Any of this will return None if the loading has failed. This is expected behavior in sbert_static_search
+print("Loading data for SBERT static search...")
+representatives_loaded = load_pickle_gz(path_to_representatives, "representatives.pkl.gz") if path_to_representatives else None
+df_doc_data = load_doc_data(path_to_doc_data) if path_to_doc_data else None
+df_doc_emb = load_doc_embeddings(path_to_doc_emb) if path_to_doc_emb else None
+
+if representatives_loaded and df_doc_data and df_doc_emb:
+    print("Data loaded.")
+
+
 # currently exact match
 def find_category(query: str, categories: Any) -> str:
     """
@@ -126,9 +149,9 @@ def sbert_static_search(
     query: str = "hammer",
     num_docs_to_retrieve: int = 5,
     exactly_retrieve_num: bool = True,
-    path_to_doc_data: str = "data/wikipedia/testdata/raw", 
-    path_to_doc_emb: str = "data/test-data-martin", 
-    path_to_representatives: str = "data/static-approach/" #representatives-hpc/repr_w_stopwords"
+    doc_emb: pd.DataFrame = df_doc_emb,
+    representatives: dict = representatives_loaded,
+    doc_data: pd.DataFrame = df_doc_data
 ) -> pd.DataFrame:
     """
     Execute the static SBERT-based semantic search.
@@ -138,64 +161,57 @@ def sbert_static_search(
     - Run semantic search
     - Join document texts
     """ 
+    if doc_emb is None:
+        print("Document embeddings could not be loaded from default path and have not been provided.")
+        return pd.DataFrame()
+
+    if representatives is None:
+        print("Representatives could not be loaded from default path and have not been provided.")
+        return pd.DataFrame()
+
+    if doc_data is None:
+        print("Document data could not be loaded from default path and have not been provided.")
+        return pd.DataFrame()
+
     if num_docs_to_retrieve <= 0:
-        print(f"Number of documents to retrieve must be be greater zero!")
+        print("Number of documents to retrieve must be greater than zero!")
         return pd.DataFrame()
 
-    # Compute absolute paths, using project root (project root computed based on file location)
-    project_root = pathlib.Path(__file__).parents[2]
-    
-    path_to_doc_data = (project_root / path_to_doc_data).as_posix()
-    path_to_doc_emb = (project_root / path_to_doc_emb).as_posix()
-    path_to_representatives = (project_root / path_to_representatives).as_posix()
-    
-    # Load doc data and embedding dataframes - absolute paths as input
-    df_doc_data = load_doc_data(path_to_doc_data)
-    df_doc_emb = load_doc_embeddings(path_to_doc_emb)
-    
-    # LOADING
-    print('SEARCHING...')
-    print('Loading semantics...')
-    representatives_loaded = load_pickle_gz(path_to_representatives, "representatives.pkl.gz")
-    print('Semantics loaded')
-    categories = representatives_loaded.keys()
-    print(f"Hammer in categories: {"hammer" in categories}")
-
-    if query not in representatives_loaded:
-        print("Query not a word of the training collection! (wikipedia)!")
+    if query not in representatives:
+        print("Query not found in representatives!")
         return pd.DataFrame()
 
-    # SEARCHING
-    print('Retrieving documents...')
-    search_results = search(query, df_doc_emb, representatives_loaded, num_docs_to_retrieve, exactly_retrieve_num)
-    search_results = add_doc_texts(search_results, df_doc_data)
-    print(f'Search results: {search_results}')
-
-    print(f'Number of clusters: {len(search_results)}')
-
+    search_results = search(query, doc_emb, representatives, num_docs_to_retrieve, exactly_retrieve_num)
+    search_results = add_doc_texts(search_results, doc_data)
     return search_results
 
-if __name__ == "__main__":
-    
-    ##### THIS SECTION HAS BEEN INCLUDED FOR EXECUTION ON HPC CLUSTER ############################
-    
-    # CHANGE THIS AS NEEDED
-    
-    PWD = os.getcwd() # current working directory
 
-    # This way you could pass arguments on execution
-    query = sys.argv[1] # Pass the query like this python /path/to/SBERT_static_search.py <query> 
 
-    path_to_doc_data = os.path.join(PWD, "data/wikipedia/split-data-no-disambiguation")
-    path_to_doc_emb = os.path.join(PWD, "../new_embeddings")
-    path_to_representatives = os.path.join(PWD, "data/representatives")
-    ##############################################################################################
+# if __name__ == "__main__":
+    
+#     # EXAMPLE EXECUTION - Caution this loads the reloads the data with each query
+    
+#     # CHANGE THIS AS NEEDED
+    
+#     PWD = os.getcwd() # current working directory
 
-    results = sbert_static_search(
-        query=query, 
-        num_docs_to_retrieve=100, 
-        exactly_retrieve_num=True,
-        path_to_doc_data=path_to_doc_data,
-        path_to_doc_emb=path_to_doc_emb,
-        path_to_representatives=path_to_representatives
-    )
+#     # This way you could pass arguments on execution
+#     query = sys.argv[1] # Pass the query like this python /path/to/SBERT_static_search.py <query> 
+
+#     path_to_doc_data = os.path.join(PWD, "data/wikipedia/split-data-no-disambiguation")
+#     path_to_doc_emb = os.path.join(PWD, "../new_embeddings")
+#     path_to_representatives = os.path.join(PWD, "data/representatives")
+
+#     representatives_loaded = load_pickle_gz(path_to_representatives, "representatives.pkl.gz")
+#     df_doc_data = load_doc_data(path_to_doc_data)
+#     df_doc_emb = load_doc_embeddings(path_to_doc_emb)
+#     ##############################################################################################
+
+#     results = sbert_static_search(
+#         query=query, 
+#         num_docs_to_retrieve=100, 
+#         exactly_retrieve_num=True,
+#         doc_data=df_doc_data,
+#         doc_emb=df_doc_emb,
+#         representatives=representatives_loaded
+#     )
