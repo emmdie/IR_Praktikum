@@ -20,11 +20,12 @@ SAMPLING_FRACTION = 1.0  # set between 0 and 1
 SKIP_LARGE_CATEGORIES = False
 STOP_WORDS_EXCLUDED = True
 PCA_ENABLED = True
-CLUSTERING_METRIC = 'euclidean'
+CLUSTERING_METRIC = 'euclidean' # euclidean or cosine
 HPC_EXECUTION = True
 
 # Relevant if SKIP_LARGE_CATEGORIES is True
 LARGE_CATEGORY_CONST = 8000
+PCA_VALUE = 100 # number of components or float between 0 and 1 indicating captured variance
 
 def compute_categories(docs: pd.DataFrame) -> Dict[str, Set[str]]:
     """
@@ -198,7 +199,7 @@ def sbert_static_load(
     # Compute PCA for each vector - discarding normal embeddings for the sake of memory
     if PCA_ENABLED:
         embeddings = np.array(df_doc_emb.embedding.tolist())
-        embeddings_pca = PCA(n_components=0.95).fit_transform(embeddings)
+        embeddings_pca = PCA(n_components=PCA_VALUE).fit_transform(embeddings)
         df_doc_emb['embedding_pca'] = embeddings_pca.tolist()
         df_doc_emb.drop('embedding', axis=1)
 
