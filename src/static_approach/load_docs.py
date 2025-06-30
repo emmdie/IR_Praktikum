@@ -43,7 +43,7 @@ def pandas_load_df_from_pickle(path):
         combined_df = pd.concat(df_list)
         combined_df = combined_df[~combined_df.index.duplicated(keep='first')]
 
-        print("Loaded these files:\n {combined_df}")
+        print(f"Loaded these files:\n {combined_df}")
 
         return combined_df
     except Exception as e:

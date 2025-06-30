@@ -1,5 +1,5 @@
 import os
-from SBERT_static_search import sbert_static_search
+from SBERT_static_search import sbert_static_search, HPC_TESTING
 from saving_and_loading import load_pickle_gz
 from load_docs import load_doc_data, load_doc_embeddings
 
@@ -11,6 +11,7 @@ from load_docs import load_doc_data, load_doc_embeddings
 """
 
 if __name__ == "__main__":
+    HPC_TESTING = True
 
     PWD = os.getcwd() # current working directory - or any other path prefix you'd like to use
     
@@ -28,7 +29,7 @@ if __name__ == "__main__":
     print("Data loaded.")
     
     # Search
-    queries = ["hi", "jaguar"]
+    queries = ["hi", "jaguar", "hammer"]
 
     for query in queries:
         results = sbert_static_search(
