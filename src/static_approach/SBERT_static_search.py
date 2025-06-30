@@ -7,6 +7,9 @@ import pathlib
 from sentence_transformers import util, SentenceTransformer
 from typing import Dict, List, Any, Set
 
+static_approach_dir = pathlib.Path(__file__).parent
+sys.path.insert(0, str(static_approach_dir))
+
 from saving_and_loading import load_pickle_gz
 from load_docs import load_doc_data, load_doc_embeddings
 from word_matching import *
@@ -18,7 +21,7 @@ model = SentenceTransformer("all-mpnet-base-v2")
 # Default paths relative to project root
 DEFAULT_DOC_DATA_PATH = "data/wikipedia/testdata/raw"
 DEFAULT_DOC_EMB_PATH = "data/test-data-martin"
-DEFAULT_REPRESENTATIVES_PATH = "data/static-approach/"
+DEFAULT_REPRESENTATIVES_PATH = "data/static-approach/prev"
 
 # Compute absolute paths at module import
 project_root = pathlib.Path(__file__).parents[2]

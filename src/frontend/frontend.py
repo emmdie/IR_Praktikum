@@ -22,12 +22,15 @@ from rich.text import Text
 from textual.message import Message
 
 from src.dynamic_approach.SBERT_HDBSCAN import the_function
+from src.static_approach.SBERT_static_search import sbert_static_search
+
 
 class SearchTriggered(Message):
-    def __init__(self, sender: Widget, query: str) -> None:
+    def __init__(self, sender: Widget, query: str, approach) -> None:
         super().__init__()
         self.sender = sender
         self.query = query
+        self.approach = approach
 
 class SearchEngineFrontend(App):
     CSS_PATH = Path(__file__).parent / "style.css"  # Commented out for testing
@@ -76,21 +79,34 @@ class SearchEngineFrontend(App):
         # reranking_controls = self.query_one("#reranking_controls", RerankingControls)
         # method = reranking_controls.get_selected_method()
         method = 'hdbscan'
-
-        try:
-            # Use the_function to get reranked results
-            results = the_function(message.query, k=5, method=method)
-            # self.populate_results_from_dict(results)
-        except Exception as e:
-            # Show error in results
-            self.clear_results()
-            results_container: Widget = self.query_one("#results_container")
-            error_field = Static(f"Error: {str(e)}", classes="error-message")
-            results_container.mount(error_field)
-            
+        
+        if message.approach == "dynamic":
+            try:
+                # Use the_function to get reranked results
+                results = the_function(query=message.query, k=5, method=method)
+                # self.populate_results_from_dict(results)
+            except Exception as e:
+                # Show error in results
+                self.clear_results()
+                results_container: Widget = self.query_one("#results_container")
+                error_field = Static(f"Error: {str(e)}", classes="error-message")
+                results_container.mount(error_field)
+        
+        elif message.approach == "static":
+            try:
+                # Use the_function to get reranked results
+                results = sbert_static_search(query=message.query, num_docs_to_retrieve=5)
+                # self.populate_results_from_dict(results)
+            except Exception as e:
+                # Show error in results
+                self.clear_results()
+                results_container: Widget = self.query_one("#results_container")
+                error_field = Static(f"Error: {str(e)}", classes="error-message")
+                results_container.mount(error_field)
             
         # results_df = fake_results_generator.generate_fake_results_df()
-        results_df = df_prepocessing.assign_cluster_colors(results)
+        # results_df = df_prepocessing.assign_cluster_colors(results)
+        results_df = results
         self.populate_results_from_dict(results_df)
         
         
@@ -100,24 +116,27 @@ class SearchEngineFrontend(App):
         for child in results_container.children:
             child.remove()
 
-LINES = """Lama
-SBERT
-Colbert""".splitlines()
+LINES = """dynamic
+static""".splitlines()
 
 class SearchBar(HorizontalGroup):
+    def __init__(self):
+        super().__init__()
+        self.selected_approach = "dynamic"
+        
     def compose(self) -> ComposeResult:
         yield Input(placeholder="Enter search term...", id="search_input", classes="search_input")
         yield Button("Search 🔎", id="start", variant="success")
-        yield Select((line, line) for line in LINES)
+        yield Select(((line, line) for line in LINES), value="dynamic", id="approach_select")
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
         if event.button.id == "start":
             query_input = self.query_one("#search_input", Input)
-            self.post_message(SearchTriggered(self, query_input.value))
+            self.post_message(SearchTriggered(self, query_input.value, self.selected_approach))
     
     @on(Select.Changed)
     def select_changed(self, event: Select.Changed) -> None:
-        self.title = str(event.value)
+        self.selected_approach = str(event.value)
 
 # class RerankingControls(Vertical):
 #     def __init__(self):
