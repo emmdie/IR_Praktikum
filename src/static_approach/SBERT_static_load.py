@@ -245,7 +245,7 @@ if __name__ == "__main__":
             f"PCA={int(PCA_VALUE) if PCA_ENABLED else 0}"
         )
 
-        path_to_repr_rel = "data/repr_{CM}"
+        path_to_repr_rel = f"data/repr_{CM}"
 
         os.mkdir(path_to_repr_rel)
 

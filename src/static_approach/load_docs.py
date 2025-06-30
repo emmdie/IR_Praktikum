@@ -18,6 +18,7 @@ def load_pickle_files(path):
     path_to_data = os.path.abspath(os.path.join(path_to_file, path))
 
     path_to_data=path
+    print(f"Trying to load data from this directory: {path_to_data}")
     # Compute file paths
     pickle_files_gzip = glob.glob(os.path.join(path_to_data, '*.pkl.gzip'))
     pickle_files_gz = glob.glob(os.path.join(path_to_data, '*.pkl.gz'))
@@ -29,7 +30,9 @@ def pandas_load_df_from_pickle(path):
     
     # Load pickle files
     pickle_files = load_pickle_files(path)
-
+    
+    print(f"Loading these pickle files: {pickle_files}")
+    
     if not pickle_files:
         return None
 
@@ -40,6 +43,8 @@ def pandas_load_df_from_pickle(path):
         combined_df = pd.concat(df_list)
         combined_df = combined_df[~combined_df.index.duplicated(keep='first')]
 
+        print("Loaded these files:\n {combined_df}")
+
         return combined_df
     except Exception as e:
         print(f"Failed to load {path}: {e}")
@@ -47,9 +52,11 @@ def pandas_load_df_from_pickle(path):
 
 
 def load_doc_embeddings(path):
+    print("Loading doc_embeddings")
     return pandas_load_df_from_pickle(path)
 
 def load_doc_data(path):
+    print("Loading doc_data")
     return pandas_load_df_from_pickle(path)
     
 
