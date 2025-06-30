@@ -116,8 +116,8 @@ class SearchEngineFrontend(App):
         for child in results_container.children:
             child.remove()
 
-LINES = """dynamic
-static""".splitlines()
+LINES = """Statisch
+Dynamisch""".splitlines()
 
 class SearchBar(HorizontalGroup):
     def __init__(self):
