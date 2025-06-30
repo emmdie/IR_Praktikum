@@ -189,8 +189,8 @@ def sbert_static_load(
         path_to_doc_emb = (project_root / path_to_doc_emb).as_posix()
         path_to_representatives = (project_root / path_to_representatives).as_posix()
         
-        df_doc_data = load_doc_data(path_to_doc_data)
-        df_doc_emb = load_doc_embeddings(path_to_doc_emb)
+    df_doc_data = load_doc_data(path_to_doc_data)
+    df_doc_emb = load_doc_embeddings(path_to_doc_emb)
 
     # Only use subset of training set to build categories
     if SAMPLING_FRACTION > 0 and SAMPLING_FRACTION < 1:
@@ -237,9 +237,21 @@ if __name__ == "__main__":
 
         PWD = os.getcwd() # current working directory
 
+        CM = (
+            f"CM={CLUSTERING_METRIC[0]}_"
+            f"SF={int(SAMPLING_FRACTION)}_"
+            f"SLC={int(SKIP_LARGE_CATEGORIES)}_"
+            f"SWE={int(STOP_WORDS_EXCLUDED)}_"
+            f"PCA={int(PCA_VALUE) if PCA_ENABLED else 0}"
+        )
+
+        path_to_repr_rel = "data/repr_{CM}"
+
+        os.mkdir(path_to_repr_rel)
+
         path_to_doc_data = os.path.join(PWD, "data/wikipedia/split-data-no-disambiguation")
         path_to_doc_emb = os.path.join(PWD, "../new_embeddings")
-        path_to_representatives = os.path.join(PWD, "data/representatives")
+        path_to_representatives = os.path.join(PWD, path_to_repr_rel)
         ##############################################################################################
 
         sbert_static_load(

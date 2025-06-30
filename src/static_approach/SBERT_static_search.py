@@ -21,7 +21,7 @@ model = SentenceTransformer("all-mpnet-base-v2")
 # Default paths relative to project root
 DEFAULT_DOC_DATA_PATH = "data/wikipedia/testdata/raw"
 DEFAULT_DOC_EMB_PATH = "data/test-data-martin"
-DEFAULT_REPRESENTATIVES_PATH = "data/static-approach/prev"
+DEFAULT_REPRESENTATIVES_PATH = "data/static-approach" #/representatives-hpc/repr_w_stopwords"
 
 # Compute absolute paths at module import
 project_root = pathlib.Path(__file__).parents[2]
@@ -52,17 +52,31 @@ def find_category(query: str, categories: Set[str], fuzzy_threshold=85, sim_thre
 
     # 1. Exact match
     if query in categories:
+        print("Using exact match!")
         return query
-
+    
     # 2. Fuzzy match
     fuzzy_word = fuzzy_match(query, categories, fuzzy_threshold)
     if fuzzy_word:
+        print("Using fuzzy match!")
         return fuzzy_word
 
-    # 3. Embedding match
-    semantic_word = embedding_match(query, categories, model, sim_threshold, word_embeddings_cache)
-    if semantic_word:
-        return semantic_word
+    # 3. Substring fuzzy match
+    for word in categories:
+        candidates = set()
+        if query in word:
+            candidates.add(word)
+        print(f"Candidates: {candidates}")
+        if not candidates:
+            break
+        fuzzy_word = fuzzy_match(query, categories, 0.6)
+        return fuzzy_word
+
+    # # 3. Embedding match # extremely low performance
+    # semantic_word = embedding_match(query, categories, model, sim_threshold, word_embeddings_cache)
+    # if semantic_word:
+    #     print("Using embedding match!")
+    #     return semantic_word
 
     return None
 
@@ -203,7 +217,7 @@ def sbert_static_search(
         print("Number of documents to retrieve must be greater than zero!")
         return pd.DataFrame()
 
-    search_results = search(query, doc_emb, representatives, num_docs_to_retrieve, exactly_retrieve_num)
+    search_results = search(query.lower(), doc_emb, representatives, num_docs_to_retrieve, exactly_retrieve_num)
 
     if search_results is None:
         return pd.DataFrame()
