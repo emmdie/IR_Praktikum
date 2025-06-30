@@ -19,7 +19,7 @@ from load_docs import load_doc_data, load_doc_embeddings
 # Config
 SAMPLING_FRACTION = 1.0  # set between 0 and 1
 SKIP_LARGE_CATEGORIES = False
-STOP_WORDS_EXCLUDED = True
+STOP_WORDS_EXCLUDED = False
 PCA_ENABLED = True
 CLUSTERING_STRATEGY = 'mini_batch_kmeans' # kmeans or hdbscan or mini_batch_kmeans
 CLUSTERING_METRIC = 'cosine' # euclidean or cosine if using hdbscan - ONLY RELEVANT IF CLUSTERING STRATEGY hdbscan
@@ -28,7 +28,7 @@ HPC_EXECUTION = True
 
 # Relevant if SKIP_LARGE_CATEGORIES is True
 LARGE_CATEGORY_CONST = 8000 # ONLY RELEVANT IF SKIP_LARGE_CATEGORIES
-PCA_VALUE = 100 # number of components or float between 0 and 1 indicating captured variance
+PCA_VALUE = 0.95 # number of components or float between 0 and 1 indicating captured variance
 
 def compute_categories(docs: pd.DataFrame) -> Dict[str, Set[str]]:
     """
@@ -286,12 +286,13 @@ if __name__ == "__main__":
         PWD = os.getcwd() # current working directory
 
         CM = (
-            f"CS={CLUSTERING_STRATEGY}_"
+            f"CS={CLUSTERING_STRATEGY[:2]}_"
             f"CM={CLUSTERING_METRIC[0]}_"
+            f"KK={KMEANS_K}"
             f"SF={int(SAMPLING_FRACTION)}_"
             f"SLC={int(SKIP_LARGE_CATEGORIES)}_"
             f"SWE={int(STOP_WORDS_EXCLUDED)}_"
-            f"PCA={int(PCA_VALUE) if PCA_ENABLED else 0}"
+            f"PCA={PCA_VALUE if PCA_ENABLED else 0}"
         )
 
         path_to_repr_rel = f"data/repr_{CM}"
