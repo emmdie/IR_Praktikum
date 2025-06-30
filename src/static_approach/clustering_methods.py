@@ -1,15 +1,18 @@
-from sklearn.cluster import HDBSCAN
+from sklearn.cluster import HDBSCAN, MiniBatchKMeans
 import torch
 import numpy as np
 from sklearn.cluster import KMeans
 from sklearn.cluster import AgglomerativeClustering
 
-def KMeansClustering(num_clusters, doc_embeddings):
-    embeddings = torch.stack(doc_embeddings).numpy()
-    kmeans = KMeans(n_clusters=num_clusters, random_state=42, n_init=10)
-    labels = kmeans.fit_predict(embeddings)
-    return num_clusters, labels
+def KMeansClustering(doc_embeddings: np.ndarray, num_clusters: int):
+    kmeans = KMeans(n_clusters=num_clusters)
+    labels = kmeans.fit_predict(doc_embeddings)
+    return labels, num_clusters
 
+def MiniBatchKMeansClustering(doc_embeddings: np.ndarray, num_clusters: int):
+    mini_batch_kmeans = MiniBatchKMeans(n_clusters=num_clusters)
+    labels = mini_batch_kmeans.fit_predict(doc_embeddings)
+    return labels, num_clusters
 
 def AgglomerativeClustering(doc_embeddings, similarity_threshold=.75):
     embeddings = torch.stack(doc_embeddings).numpy()

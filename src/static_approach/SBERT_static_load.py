@@ -1,17 +1,18 @@
+import math
 import os
 import sys
 from sklearn.decomposition import PCA
 import numpy as np
 import pandas as pd
 from collections import defaultdict
-from typing import Dict, Set
+from typing import Dict, Set, List
 import pathlib
 
 # Add project root to sys.path
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
 
 from inverted_index import build_inverted_index
-from clustering_methods import HDBClustering
+from clustering_methods import HDBClustering, KMeansClustering, MiniBatchKMeansClustering
 from saving_and_loading import save_pickle_gz
 from load_docs import load_doc_data, load_doc_embeddings
 
@@ -20,11 +21,13 @@ SAMPLING_FRACTION = 1.0  # set between 0 and 1
 SKIP_LARGE_CATEGORIES = False
 STOP_WORDS_EXCLUDED = True
 PCA_ENABLED = True
-CLUSTERING_METRIC = 'euclidean' # euclidean or cosine
+CLUSTERING_STRATEGY = 'mini_batch_kmeans' # kmeans or hdbscan or mini_batch_kmeans
+CLUSTERING_METRIC = 'cosine' # euclidean or cosine if using hdbscan - ONLY RELEVANT IF CLUSTERING STRATEGY hdbscan
+KMEANS_K = 8 # ONLY RELEVANT IF CLUSTERING STRATGY kmeans
 HPC_EXECUTION = True
 
 # Relevant if SKIP_LARGE_CATEGORIES is True
-LARGE_CATEGORY_CONST = 8000
+LARGE_CATEGORY_CONST = 8000 # ONLY RELEVANT IF SKIP_LARGE_CATEGORIES
 PCA_VALUE = 100 # number of components or float between 0 and 1 indicating captured variance
 
 def compute_categories(docs: pd.DataFrame) -> Dict[str, Set[str]]:
@@ -39,7 +42,90 @@ def compute_categories(docs: pd.DataFrame) -> Dict[str, Set[str]]:
     """
     return build_inverted_index(docs)
 
-def compute_clustering(df_doc_emb: pd.DataFrame, categories: Dict[str, Set[str]]) -> Dict[str, Dict[int, Set[str]]]:
+def refine_clusters(
+    embeddings: np.ndarray,
+    category: str,
+    metric: str,
+    hpc_execution: bool,
+    initial_epsilon: float = 0.4,
+    initial_alpha: float = 1.0,
+    min_clusters: int = 10
+) -> List[int]:
+    """
+    Iteratively refine HDBSCAN clustering parameters to achieve a desired number of clusters.
+
+    Args:
+        embeddings (List[Any]): The list of data embeddings to cluster.
+        category (str): The category name (used for logging).
+        metric (str): The distance metric used for clustering.
+        hpc_execution (bool): Flag indicating whether HPC execution is enabled.
+        initial_epsilon (float, optional): Initial epsilon for cluster selection. Defaults to 0.4.
+        initial_alpha (float, optional): Initial alpha parameter. Defaults to 1.0.
+        min_clusters (int, optional): Minimum number of desired clusters. Defaults to 10.
+
+    Returns:
+        List[int]: List of cluster labels.
+    """
+    cluster_selection_epsilon = initial_epsilon
+    alpha = initial_alpha
+    num_clusters = min_clusters + 1  # something greater than 10
+    prev_num_clusters = num_clusters + 1  # something greater than prev_num_clusters
+    stuck_counter = 0
+    first_iteration = True
+
+    while num_clusters > min_clusters:
+        num_clusters, clusters = HDBClustering(
+            embeddings,
+            metric=metric,
+            cluster_selection_epsilon=cluster_selection_epsilon,
+            alpha=alpha
+        )
+
+        if not hpc_execution:
+            print(f'Num clusters "{category}": {num_clusters}')
+
+        # Increase epsilon if cluster number way too high, and less if cluster size almost right
+        if num_clusters > 100:
+            cluster_selection_epsilon += 0.1
+        elif num_clusters < 20:
+            cluster_selection_epsilon += 0.01
+        else:
+            cluster_selection_epsilon += 0.03
+
+        # Detect stagnation
+        if num_clusters == prev_num_clusters and not first_iteration:
+            stuck_counter += 1
+        else:
+            stuck_counter = 0
+
+        if stuck_counter >= 1:
+            alpha += 0.1
+            stuck_counter = 0
+            # input(f"Alpha increased to {alpha}!")
+            # print(f"Alpha increased to {alpha}!")
+
+        # Undo giant jumps (like 18 to 3) by undoing reduction of alpha
+        if num_clusters <= 7 and prev_num_clusters - num_clusters >= 7 and not first_iteration:
+            # Don't reduce alpha, but epsilon instead
+            alpha -= 0.1
+
+            # Reset cluster number
+            num_clusters = prev_num_clusters
+            prev_num_clusters += 1
+            # input(f"Undoing giant jump, using alpha = {alpha}, epsilon = {cluster_selection_epsilon}")
+        else:
+            prev_num_clusters = num_clusters
+
+        first_iteration = False
+
+    return clusters
+
+
+def compute_clustering(
+        df_doc_emb: pd.DataFrame, 
+        categories: Dict[str, Set[str]], 
+        clustering_method: str = 'hdbscan'
+    ) -> Dict[str, Dict[int, Set[str]]]:
     """
     Cluster documents within each category using HDBSCAN, skipping very large categories.
     
@@ -73,62 +159,24 @@ def compute_clustering(df_doc_emb: pd.DataFrame, categories: Dict[str, Set[str]]
         else:
             embeddings = np.array(docs_in_category.embedding.tolist())
         
-        # min_cluster_size * num_clusters  = len(doc_ids_in_category)
-        max_num_clusters = len(doc_ids_in_category) # 10 # maximum number of clusters
         
         if len(embeddings) > 1:
-            min_cluster_size = int(np.ceil(len(doc_ids_in_category) / max_num_clusters))
-            cluster_selection_epsilon = 0.4
-            alpha = 1
-            num_clusters = 11 # something greater 10
-            prev_num_clusters = num_clusters + 1 # something greater than pre_num_clusters
-            stuck_counter = 0
-            first_iteration = True
-            while num_clusters > 10:
-                num_clusters, clusters = HDBClustering(
-                    embeddings, 
+            if clustering_method == 'hdbscan':
+                clusters = refine_clusters(
+                    embeddings=embeddings,
+                    category=category,
                     metric=CLUSTERING_METRIC,
-                    cluster_selection_epsilon=cluster_selection_epsilon, 
-                    alpha=alpha,
-                    min_cluster_size=min_cluster_size
-                    )
-                
-                if not HPC_EXECUTION:
-                    print(f'Num clusters "{category}": {num_clusters}')
-                
-                # Increase epsilon if cluster number way too high, and less if cluster size almost right
-                if num_clusters > 100:
-                    cluster_selection_epsilon += 0.1
-                elif num_clusters < 20:
-                    cluster_selection_epsilon += 0.01
-                else:
-                    cluster_selection_epsilon += 0.03
-                
-                # Detect stagnation
-                if num_clusters == prev_num_clusters and not first_iteration:
-                    stuck_counter += 1
-                else:
-                    stuck_counter = 0
-
-                if stuck_counter >= 1:
-                    alpha += 0.1
-                    stuck_counter = 0
-                    # input(f"Alpha increased to {alpha}!")
-                    # print(f"Alpha increased to {alpha}!")
-                
-                # Undo giant jumps (like 18 to 3) by undoing reduction of alpha
-                if num_clusters <= 7 and prev_num_clusters - num_clusters >= 7 and not first_iteration:
-                    # Don't reduce alpha, but epsilon instead
-                    alpha -= 0.1
-                    
-                    # Reset cluster number
-                    num_clusters = prev_num_clusters
-                    prev_num_clusters += 1
-                    # input(f"Undoing giant jump, using alpha = {alpha}, epsilon = {cluster_selection_epsilon}")
-                else:
-                    prev_num_clusters = num_clusters                
-                    
-                first_iteration = False
+                    hpc_execution=HPC_EXECUTION
+                )
+            elif clustering_method == 'kmeans':
+                num_clusters = KMEANS_K if len(embeddings) >= KMEANS_K else max(2, int(math.sqrt(len(embeddings))))
+                clusters, num_clusters = KMeansClustering(doc_embeddings=embeddings, num_clusters=num_clusters)
+            elif clustering_method == 'mini_batch_kmeans':
+                num_clusters = KMEANS_K if len(embeddings) >= KMEANS_K else max(2, int(math.sqrt(len(embeddings))))
+                clusters, num_clusters = MiniBatchKMeansClustering(doc_embeddings=embeddings, num_clusters=num_clusters)
+            else:
+                raise Exception(f"Clustering method must be one of 'kmeans' or 'hdbscan', but is {clustering_method}")
+            
         elif len(embeddings) == 1:
             clusters = [1]
         else:
@@ -214,7 +262,7 @@ def sbert_static_load(
     categories = compute_categories(df_doc_data)
 
     # 2: Cluster documents within each category
-    clustering = compute_clustering(df_doc_emb, categories)
+    clustering = compute_clustering(df_doc_emb, categories, CLUSTERING_STRATEGY)
 
     # 3: Compute representative (centroid) embeddings per cluster
     representatives = compute_representatives(df_doc_emb, clustering)
@@ -238,6 +286,7 @@ if __name__ == "__main__":
         PWD = os.getcwd() # current working directory
 
         CM = (
+            f"CS={CLUSTERING_STRATEGY}_"
             f"CM={CLUSTERING_METRIC[0]}_"
             f"SF={int(SAMPLING_FRACTION)}_"
             f"SLC={int(SKIP_LARGE_CATEGORIES)}_"

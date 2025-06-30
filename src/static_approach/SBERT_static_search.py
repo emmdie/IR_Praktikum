@@ -24,7 +24,7 @@ HPC_TESTING = False
 # Default paths relative to project root
 DEFAULT_DOC_DATA_PATH = "data/wikipedia/testdata/raw"
 DEFAULT_DOC_EMB_PATH = "data/test-data-martin"
-DEFAULT_REPRESENTATIVES_PATH = "data/static-approach/testing" #/representatives-hpc/repr_w_stopwords"
+DEFAULT_REPRESENTATIVES_PATH = "data/static-approach/testing/hdbscan" #/representatives-hpc/repr_w_stopwords"
 
 # Compute absolute paths at module import
 project_root = pathlib.Path(__file__).parents[2]
@@ -77,7 +77,7 @@ def find_category(query: str, categories: Set[str], fuzzy_threshold=85, sim_thre
             print(f"Using substring fuzzy match with '{fuzzy_word}'")
             return fuzzy_word
 
-    # # 3. Embedding match # extremely low performance
+    # # 3. Embedding match # EXTREMELY LOW IN PERFORMANCE
     # semantic_word = embedding_match(query, categories, model, sim_threshold, word_embeddings_cache)
     # if semantic_word:
     #     print("Using embedding match!")
