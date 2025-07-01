@@ -15,7 +15,8 @@ from load_docs import load_doc_data, load_doc_embeddings
 from word_matching import *
 import show
 
-model = SentenceTransformer("all-mpnet-base-v2")
+device = "cuda" if torch.cuda.is_available() else "cpu"
+model = SentenceTransformer("all-mpnet-base-v2", device=device)
 
 # Config
 HPC_TESTING = False
