@@ -171,7 +171,7 @@ def rank(results_df: pd.DataFrame, query: str, df_doc_emb) -> pd.DataFrame:
     """
 
     # Compute embedding of query and get embeddings of results
-    query_embedding = model.encode(query, convert_to_tensor=True, normalize_embeddings=True) # TODO check if this matches the embedding config used
+    query_embedding = model.encode(query, convert_to_tensor=True, normalize_embeddings=True, device="cpu") # TODO check if this matches the embedding config used
     doc_ids = results_df.index.tolist()
     results_embeddings = [torch.tensor(df_doc_emb.loc[doc_id].embedding) for doc_id in doc_ids]
     

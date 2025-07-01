@@ -1,6 +1,6 @@
 .search_input {
     margin: 1;
-    width: 80%;
+    width: 60%;
 }
 
 .result-frame {
@@ -22,16 +22,21 @@
     margin-right: 1;
 }
 
-.reranking-controls {
+.results-controls {
     margin: 1;
     padding: 1;
     border: solid $secondary;
     background: $surface;
 }
 
+.page-info {
+    margin: 0 2;
+    text-align: center;
+}
+
 .control-label {
     text-style: bold;
-    margin-bottom: 1;
+    margin: 0 1;
 }
 
 .error-message {
@@ -39,4 +44,58 @@
     text-style: bold;
     margin: 1;
     padding: 1;
+}
+
+#results_container {
+    height: 1fr;
+    margin: 1;
+}
+
+/* Settings Modal Styles */
+#settings_dialog {
+    width: 60;
+    height: 35;
+    background: $surface;
+    border: thick $primary;
+    margin: 2;
+}
+
+.settings-container {
+    padding: 2;
+}
+
+.settings-title {
+    text-align: center;
+    text-style: bold;
+    color: $accent;
+    margin-bottom: 2;
+}
+
+.setting-label {
+    text-style: bold;
+    margin-top: 1;
+    margin-bottom: 1;
+}
+
+.button-group {
+    margin-top: 2;
+    content-align: center middle;
+    width: 100%;
+}
+
+.button-container {
+    width: 100%;
+    content-align: center middle;
+}
+
+.button-group Button {
+    margin: 0 1;
+}
+
+.settings-button {
+    width: 5;
+}
+
+.results-buttons {
+    margin-bottom: 1;
 }

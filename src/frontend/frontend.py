@@ -7,35 +7,148 @@ from rich import color
 from frontend import fake_results_generator, df_prepocessing
 import pandas as pd
 
+import matplotlib
+import matplotlib.pyplot as plt
+matplotlib.use('Qt5Agg')  
+
 from textual import on
 # Add project root to Python path
 project_root = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(project_root))
 
 from textual.widget import Widget
-from textual.widgets import Select
+from textual.widgets import Select, Switch
 from textual.app import App, ComposeResult
 from textual.widgets import Footer, Header, Button, Digits, Input, Label, Static, RadioSet, RadioButton
 from textual.containers import HorizontalGroup, VerticalScroll, Vertical, Horizontal, Container
 from textual.reactive import reactive
+from textual.screen import ModalScreen
 from rich.text import Text
 from textual.message import Message
 
-from src.dynamic_approach.SBERT_HDBSCAN import the_function
+from src.dynamic_approach.SBERT_dynamic_search import the_function
 from src.static_approach.SBERT_static_search import sbert_static_search
 
-
 class SearchTriggered(Message):
-    def __init__(self, sender: Widget, query: str, approach) -> None:
+    def __init__(self, sender: Widget, query: str, approach: str) -> None:
         super().__init__()
         self.sender = sender
         self.query = query
         self.approach = approach
+        
+class SettingsScreen(ModalScreen):
+    """A modal settings screen"""
+    
+    def __init__(self, app_settings: dict):
+        super().__init__()
+        self.app_settings = app_settings
+    
+    def compose(self) -> ComposeResult:
+        yield Container(
+            Vertical(
+                Label("⚙️  Settings", classes="settings-title"),
+                
+                # Clustering method selection
+                Label("Clustering Method:", classes="setting-label"),
+                RadioSet(
+                    RadioButton("K-Means", value=self.app_settings.get("clustering_method") == "kmeans", id="kmeans"),
+                    RadioButton("HDBSCAN", value=self.app_settings.get("clustering_method") == "hdbscan", id="hdbscan"),
+                    id="clustering_method"
+                ),
+                
+                # Number of results - using buttons instead of slider
+                Label("Number of Results:", classes="setting-label"),
+                Horizontal(
+                    Button("5", variant="success" if self.app_settings.get("num_results") == 5 else "default", id="results_5"),
+                    Button("10", variant="success" if self.app_settings.get("num_results") == 10 else "default", id="results_10"),
+                    Button("25", variant="success" if self.app_settings.get("num_results") == 25 else "default", id="results_25"),
+                    Button("50", variant="success" if self.app_settings.get("num_results") == 50 else "default", id="results_50"),
+                    classes="results-buttons"
+                ),
+                
+                # Enable debug mode
+                Horizontal(
+                    Label("Debug Mode:", classes="setting-label"),
+                    Switch(value=self.app_settings.get("debug_mode", False), id="debug_switch"),
+                ),
+                
+                # Show similarity scores
+                Horizontal(
+                    Label("Show Similarity Scores:", classes="setting-label"),
+                    Switch(value=self.app_settings.get("show_scores", True), id="scores_switch"),
+                ),
+                
+                # Buttons - Fixed container structure with better spacing
+                Horizontal(
+                    Button("Cancel", variant="default", id="cancel"),
+                    Button("Apply", variant="success", id="apply"),
+                    classes="button-group"
+                ),
+                
+                classes="settings-container"
+            ),
+            id="settings_dialog"
+        )
+    
+    def on_button_pressed(self, event: Button.Pressed) -> None:
+        if event.button.id == "cancel":
+            self.dismiss()
+        elif event.button.id == "apply":
+            # Collect settings
+            clustering_radio = self.query_one("#clustering_method", RadioSet)
+            clustering_method = clustering_radio.pressed_button.id if clustering_radio.pressed_button else "hdbscan"
+            
+            debug_mode = self.query_one("#debug_switch", Switch).value
+            show_scores = self.query_one("#scores_switch", Switch).value
+            
+            # Update settings
+            self.app_settings.update({
+                "clustering_method": clustering_method,
+                "num_results": self.app_settings.get("num_results", 5),  # Keep current value
+                "debug_mode": debug_mode,
+                "show_scores": show_scores
+            })
+            
+            if debug_mode:
+                print(f"Settings applied: {self.app_settings}")
+            
+            self.dismiss(self.app_settings)
+        
+        # Handle results count buttons
+        elif event.button.id.startswith("results_"):
+            num_results = int(event.button.id.split("_")[1])
+            self.app_settings["num_results"] = num_results
+            self._update_results_buttons(event.button.id)
+    
+    def _update_results_buttons(self, active_id: str):
+        """Update the styling of results count buttons"""
+        for button_id in ["results_5", "results_10", "results_25", "results_50"]:
+            try:
+                button = self.query_one(f"#{button_id}", Button)
+                if button_id == active_id:
+                    button.variant = "success"
+                else:
+                    button.variant = "default"
+            except:
+                pass  # Button might not exist yet
 
 class SearchEngineFrontend(App):
-    CSS_PATH = Path(__file__).parent / "style.css"  # Commented out for testing
-    BINDINGS = [("d", "toggle_dark", "Toggle dark mode")]
+    CSS_PATH = Path(__file__).parent / "style.css"
+    BINDINGS = [
+        ("d", "toggle_dark", "Toggle dark mode"),
+        ("s", "show_settings", "Show settings"),
+        ("q", "quit", "Quit")]
 
+    def __init__(self):
+        super().__init__()
+        # App settings with defaults
+        self.settings = {
+            "clustering_method": "hdbscan",
+            "num_results": 5,
+            "debug_mode": False,
+            "show_scores": True
+        }
+        
     def compose(self) -> ComposeResult:
         yield Header()
         yield Footer()
@@ -45,6 +158,16 @@ class SearchEngineFrontend(App):
     def action_toggle_dark(self) -> None:
         self.theme = (
             "textual-dark" if self.theme == "textual-light" else "textual-light")
+
+    def action_show_settings(self) -> None:
+        """Show the settings modal"""
+        def handle_settings_result(settings: dict) -> None:
+            if settings:  # Only update if user clicked Apply
+                self.settings = settings
+                if self.settings.get("debug_mode"):
+                    print(f"Settings updated: {self.settings}")
+        
+        self.push_screen(SettingsScreen(self.settings.copy()), handle_settings_result)
 
     def populate_results_from_dict(self, result_df) -> None:
         """Populate the UI with reranked results"""
@@ -65,51 +188,77 @@ class SearchEngineFrontend(App):
                 doc_id=str(entry.get("doc_id", "")),
                 label=str(entry.get("label", "")),
                 text=entry.get("text", "No text available"),
-                similarity_score=entry.get("similarity_score", 0.0)
+                similarity_score=entry.get("similarity_score", 0.0),
+                show_scores=self.settings.get("show_scores", True)
             )
             results_container.mount(rf)
-
 
     def on_search_triggered(self, message: SearchTriggered) -> None:
         """Handle search trigger and apply reranking using the_function"""
         if not message.query.strip():
             return
 
-        # Get reranking method from UI
-        # reranking_controls = self.query_one("#reranking_controls", RerankingControls)
-        # method = reranking_controls.get_selected_method()
-        method = 'hdbscan'
+        method = self.settings.get("clustering_method", "hdbscan")
+        num_results = self.settings.get("num_results", 5)
+        debug_mode = self.settings.get("debug_mode", False)
+        
+        if debug_mode:
+            print(f"Searching with query: '{message.query}' using approach: {message.approach}")
+            print(f"Method: {method}, Results: {num_results}")
         
         if message.approach == "dynamic":
             try:
-                # Use the_function to get reranked results
-                results = the_function(query=message.query, k=5, method=method)
-                # self.populate_results_from_dict(results)
+                results = the_function(query=message.query, k=num_results, method=method)
             except Exception as e:
-                # Show error in results
                 self.clear_results()
                 results_container: Widget = self.query_one("#results_container")
                 error_field = Static(f"Error: {str(e)}", classes="error-message")
                 results_container.mount(error_field)
+                return
         
         elif message.approach == "static":
             try:
-                # Use the_function to get reranked results
                 results = sbert_static_search(query=message.query, num_docs_to_retrieve=5)
-                # self.populate_results_from_dict(results)
             except Exception as e:
-                # Show error in results
                 self.clear_results()
                 results_container: Widget = self.query_one("#results_container")
                 error_field = Static(f"Error: {str(e)}", classes="error-message")
                 results_container.mount(error_field)
+                return
             
-        # results_df = fake_results_generator.generate_fake_results_df()
-        # results_df = df_prepocessing.assign_cluster_colors(results)
         results_df = results
         self.populate_results_from_dict(results_df)
         
+    def run_search_with_viz(self, query: str, approach: str):
+        """Run search with visualization enabled"""
+        method = self.settings.get("clustering_method", "hdbscan")
+        num_results = self.settings.get("num_results", 5)
         
+        if approach == "dynamic":
+            try:
+                # Import here to avoid circular imports
+                from src.dynamic_approach.SBERT_dynamic_search import the_function
+                # Run with visualization enabled
+                results = the_function(query=query, k=num_results, method=method, show_viz=True)
+                
+                # Update status
+                self.clear_results()
+                results_container = self.query_one("#results_container")
+                info_message = Static(f"Visualization opened for query: '{query}' using {approach} approach", classes="info-message")
+                results_container.mount(info_message)
+                
+            except Exception as e:
+                self.clear_results()
+                results_container = self.query_one("#results_container")
+                error_field = Static(f"Visualization error: {str(e)}", classes="error-message")
+                results_container.mount(error_field)
+        else:
+            # Handle static approach visualization if needed
+            self.clear_results()
+            results_container = self.query_one("#results_container")
+            info_message = Static("Visualization not yet implemented for static approach", classes="info-message")
+            results_container.mount(info_message)
+            
     def clear_results(self) -> None:
         """Clear all results from the UI"""
         results_container: Widget = self.query_one("#results_container")
@@ -122,55 +271,49 @@ static""".splitlines()
 class SearchBar(HorizontalGroup):
     def __init__(self):
         super().__init__()
-        self.selected_approach = "dynamic"
+        self.selected_approach = "dynamic"  # Fixed variable name
         
     def compose(self) -> ComposeResult:
         yield Input(placeholder="Enter search term...", id="search_input", classes="search_input")
         yield Button("Search 🔎", id="start", variant="success")
         yield Select(((line, line) for line in LINES), value="dynamic", id="approach_select")
-
+        yield Button("Viz 📊", id="viz", variant="warning", classes="viz-button")
+        yield Button("Set ⚙️", id="settings", variant="primary", classes="settings-button")
+        
     def on_button_pressed(self, event: Button.Pressed) -> None:
         if event.button.id == "start":
             query_input = self.query_one("#search_input", Input)
+            # Fixed variable name
             self.post_message(SearchTriggered(self, query_input.value, self.selected_approach))
-    
+        elif event.button.id == "settings":
+            app = self.app
+            app.action_show_settings()
+            
+        elif event.button.id == "viz":
+            # Trigger visualization of last search
+            app = self.app
+            app.run_search_with_viz(query_input.value, self.selected_approach)
+            
+            
     @on(Select.Changed)
     def select_changed(self, event: Select.Changed) -> None:
+        # Fixed variable name
         self.selected_approach = str(event.value)
-
-# class RerankingControls(Vertical):
-#     def __init__(self):
-#         super().__init__()
-#         self.add_class("reranking-controls")
-
-#     def compose(self) -> ComposeResult:
-#         yield Label("Reranking Method:", classes="control-label")
-#         yield RadioSet(
-#             RadioButton("Original (No Reranking)", value=True, id="original"),
-#             RadioButton("K-Means Clustering", id="kmeans"),
-#             RadioButton("HDBSCAN Clustering", id="hdbscan"),
-#             id="reranking_method"
-#         )
-
-#     def get_selected_method(self) -> str:
-#         """Get the currently selected reranking method"""
-#         radio_set = self.query_one("#reranking_method", RadioSet)
-#         if radio_set.pressed_button:
-#             return radio_set.pressed_button.id
-#         return "original"
-
+        app = self.app
+        if app.settings.get("debug_mode"):
+            print(f"Approach selection changed to: {self.selected_approach}")
 
 class ResultField(Vertical):
-    def __init__(self, original_ranking: int, new_ranking: int, cluster: str, doc_id: str, label: str, text: str, similarity_score: float = 0.0) -> None:
+    def __init__(self, original_ranking: int, new_ranking: int, cluster: str, doc_id: str, label: str, text: str, similarity_score: float = 0.0, show_scores: bool = True) -> None:
         super().__init__()
         self.original_ranking = original_ranking
         self.new_ranking = new_ranking
         self.cluster = cluster
         self.doc_id = doc_id
         self.label = label
-        self.text = text or "No text available"  # Ensure text is not None/empty
+        self.text = text or "No text available"
         self.similarity_score = similarity_score
-        self.color = color
+        self.show_scores = show_scores
 
     def compose(self):
         # Create header with ranking information
@@ -178,7 +321,9 @@ class ResultField(Vertical):
         if self.new_ranking != self.original_ranking:
             header_text += f" (was #{self.original_ranking})"
         header_text += f" | Cluster: {self.cluster} | ID: {self.doc_id}"
-        if self.similarity_score > 0:
+        
+        # Only show similarity score if setting is enabled
+        if self.show_scores and self.similarity_score > 0:
             header_text += f" | Score: {self.similarity_score:.4f}"
 
         # Truncate very long text for display
@@ -187,8 +332,7 @@ class ResultField(Vertical):
         yield Container(
             Vertical(
                 Label(header_text, classes="result-header"),
-                Static(display_text, classes="result-body"),  # Use plain text instead of markup
+                Static(display_text, classes="result-body"),
             ),
             classes="result-frame"
         )
-        
