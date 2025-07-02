@@ -225,6 +225,17 @@ class SearchEngineFrontend(App):
                 error_field = Static(f"Error: {str(e)}", classes="error-message")
                 results_container.mount(error_field)
                 return
+        
+        elif message.approach == "no-cluster":
+            try:
+                results = the_function(query=message.query, k=num_results, method=method)
+            except Exception as e:
+                self.clear_results()
+                results_container: Widget = self.query_one("#results_container")
+                error_field = Static(f"Error: {str(e)}", classes="error-message")
+                results_container.mount(error_field)
+                return
+        
             
         results_df = results
         self.populate_results_from_dict(results_df)
@@ -236,7 +247,8 @@ class SearchEngineFrontend(App):
             child.remove()
 
 LINES = """dynamic
-static""".splitlines()
+static
+no-cluster""".splitlines()
 
 class SearchBar(HorizontalGroup):
     def __init__(self):

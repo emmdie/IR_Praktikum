@@ -32,7 +32,7 @@ class OptimizedDocumentClusterer:
         
         # Pre-process embeddings for faster search
         self._prepare_embeddings()
-        # Create doc_id mapping to handle format differences
+
         self._create_doc_id_mapping()
     
     def _prepare_embeddings(self):
@@ -50,20 +50,17 @@ class OptimizedDocumentClusterer:
             print(f"Loaded cached {len(self.embeddings_array)} embeddings")
         else:
             print("Creating embeddings cache...")
-            # Load and convert embeddings
             embeddings_df = pd.read_pickle(self.embeddings_path, compression='gzip')
             
             print("Converting embeddings to numpy arrays...")
             
-            # CRITICAL FIX: Handle embeddings DataFrame with wrong index format
-            
-            # Debug: Check what the original embeddings DataFrame index looks like
+           
             print(f"DEBUG - Original embeddings DataFrame:")
-            print(f"  Shape: {embeddings_df.shape}")
-            print(f"  Index type: {type(embeddings_df.index)}")
-            print(f"  First 5 index values: {embeddings_df.index[:5].tolist()}")
-            print(f"  Index dtype: {embeddings_df.index.dtype}")
-            print(f"  Columns: {embeddings_df.columns.tolist()}")
+            print(f"    Shape: {embeddings_df.shape}")
+            print(f"    Index type: {type(embeddings_df.index)}")
+            print(f"    First 5 index values: {embeddings_df.index[:5].tolist()}")
+            print(f"    Index dtype: {embeddings_df.index.dtype}")
+            print(f"    Columns: {embeddings_df.columns.tolist()}")
             
             # Check if embeddings DataFrame has a 'doc_id' column (fallback)
             if 'doc_id' in embeddings_df.columns:
@@ -74,8 +71,6 @@ class OptimizedDocumentClusterer:
                 original_doc_ids = embeddings_df.index.tolist()
             else:
                 print("WARNING: Embeddings index appears to be numeric, attempting to reconstruct doc_ids")
-                # Reconstruct doc_ids based on position (this assumes 1-based indexing)
-                # This matches the pattern we see in text_df: d_0000001, d_0000002, etc.
                 original_doc_ids = [f"d_{i+1:07d}" for i in range(len(embeddings_df))]
                 print(f"Reconstructed doc_ids format: {original_doc_ids[:5]}")
             
@@ -83,16 +78,15 @@ class OptimizedDocumentClusterer:
             embeddings_list = embeddings_df['embedding'].tolist()
             self.embeddings_array = np.array(embeddings_list, dtype=np.float32)
             
-            # Store corrected doc_ids - now position i in embeddings_array corresponds to doc_ids[i]
             self.doc_ids = original_doc_ids
             
-            # Validation: check alignment
-            print(f"✅ Position-based alignment created:")
-            print(f"   Array length: {len(self.embeddings_array)}")
-            print(f"   Doc_ids length: {len(self.doc_ids)}")
-            print(f"   First 3 position->doc_id mappings: {[(i, self.doc_ids[i]) for i in range(min(3, len(self.doc_ids)))]}")
             
-            # Save cache for faster future loading
+            print(f"Position-based alignment created:")
+            print(f"    Array length: {len(self.embeddings_array)}")
+            print(f"    Doc_ids length: {len(self.doc_ids)}")
+            print(f"    First 3 position->doc_id mappings: {[(i, self.doc_ids[i]) for i in range(min(3, len(self.doc_ids)))]}")
+            
+            # Save cache 
             print("Saving embeddings cache...")
             np.savez_compressed(cache_path, 
                             embeddings=self.embeddings_array, 
@@ -117,20 +111,17 @@ class OptimizedDocumentClusterer:
         
         print(f"Embedding doc_ids format: {sample_embedding_ids}")
         print(f"Text doc_ids format: {sample_text_ids}")
-        
-        # Check if they match directly
+
         if set(sample_embedding_ids).intersection(set(sample_text_ids)):
             print("Doc_ids match directly, no mapping needed")
             self.doc_id_mapping = None
             return
         
-        # Create mapping based on pattern analysis
         self.doc_id_mapping = {}
         self.reverse_mapping = {}
         
-        # Try to detect the pattern
+
         if all(isinstance(text_id, str) and text_id.startswith('d_') for text_id in sample_text_ids):
-            # Pattern: embedding_id -> 'd_' + zero-padded(embedding_id + 1)
             print("Detected pattern: numeric -> 'd_XXXXXXX' format")
             
             for embedding_id in self.doc_ids:
@@ -138,7 +129,6 @@ class OptimizedDocumentClusterer:
                     # Convert to 1-based index and format as text_id
                     text_id = f"d_{embedding_id + 1:07d}"
                     
-                    # Only add mapping if the text_id exists in text data
                     if text_id in self.text_df.index:
                         self.doc_id_mapping[embedding_id] = text_id
                         self.reverse_mapping[text_id] = embedding_id
@@ -158,73 +148,12 @@ class OptimizedDocumentClusterer:
             return embedding_doc_id
         return self.doc_id_mapping.get(embedding_doc_id, embedding_doc_id)
     
-        print(f"Prepared {len(self.embeddings_array)} embeddings of dimension {self.embeddings_array.shape[1]}")
-        print(f"Memory usage: {self.embeddings_array.nbytes / (1024**3):.2f} GB")
-        print(f"Sample doc IDs: {self.doc_ids[:5]}")  # Debug info
-    
-    def _create_doc_id_mapping(self):
-        """Create mapping between embedding doc_ids and text doc_ids"""
-        print("Creating doc_id mapping...")
-        
-        # Analyze the formats
-        sample_embedding_ids = self.doc_ids[:5]
-        sample_text_ids = self.text_df.index[:5].tolist()
-        
-        print(f"Embedding doc_ids format: {sample_embedding_ids}")
-        print(f"Text doc_ids format: {sample_text_ids}")
-        
-        # Check if they match directly
-        if set(sample_embedding_ids).intersection(set(sample_text_ids)):
-            print("Doc_ids match directly, no mapping needed")
-            self.doc_id_mapping = None
-            return
-        
-        # Create mapping based on pattern analysis
-        self.doc_id_mapping = {}
-        self.reverse_mapping = {}
-        
-        # Try to detect the pattern
-        if all(isinstance(text_id, str) and text_id.startswith('d_') for text_id in sample_text_ids):
-            # Pattern: embedding_id -> 'd_' + zero-padded(embedding_id + 1)
-            print("Detected pattern: numeric -> 'd_XXXXXXX' format")
-            
-            for embedding_id in self.doc_ids:
-                try:
-                    # Convert to 1-based index and format as text_id
-                    text_id = f"d_{embedding_id + 1:07d}"
-                    
-                    # Only add mapping if the text_id exists in text data
-                    if text_id in self.text_df.index:
-                        self.doc_id_mapping[embedding_id] = text_id
-                        self.reverse_mapping[text_id] = embedding_id
-                except:
-                    continue
-            
-            print(f"Created mapping for {len(self.doc_id_mapping)} documents")
-            print(f"Sample mappings: {dict(list(self.doc_id_mapping.items())[:3])}")
-            
-        else:
-            print("Could not detect doc_id pattern, will attempt direct mapping")
-            self.doc_id_mapping = None
-    
-    def _map_to_text_id(self, embedding_doc_id):
-        """Convert embedding doc_id to text doc_id"""
-        if self.doc_id_mapping is None:
-            return embedding_doc_id
-        return self.doc_id_mapping.get(embedding_doc_id, embedding_doc_id)
-    
-    def _map_from_text_id(self, text_doc_id):
-        """Convert text doc_id to embedding doc_id"""
-        if self.doc_id_mapping is None:
-            return text_doc_id
-        return self.reverse_mapping.get(text_doc_id, text_doc_id)
     
     def _chunked_similarity_search(self, query_embedding: np.ndarray, k: int = 1000, chunk_size: int = 100000) -> Tuple[List, List]:
         """Optimized chunked similarity search"""
         print(f"Searching through {len(self.embeddings_array)} embeddings...")
         start_time = time.time()
         
-        # Use a min-heap approach for memory efficiency
         from heapq import nlargest
         
         all_results = []
@@ -233,15 +162,14 @@ class OptimizedDocumentClusterer:
         for i in range(0, len(self.embeddings_array), chunk_size):
             chunk_end = min(i + chunk_size, len(self.embeddings_array))
             chunk_embeddings = self.embeddings_array[i:chunk_end]
-            
-            # Compute similarities for this chunk using optimized numpy
+                  
             chunk_scores = np.dot(chunk_embeddings, query_embedding)
             
             # Store results with global indices
             for j, score in enumerate(chunk_scores):
                 all_results.append((float(score), i + j))
             
-            if i // chunk_size % 10 == 0:  # Progress update every 10 chunks
+            if i // chunk_size % 10 == 0:  
                 print(f"Processed {i//chunk_size + 1}/{(len(self.embeddings_array)-1)//chunk_size + 1} chunks")
         
         # Get top k results efficiently
@@ -264,21 +192,19 @@ class OptimizedDocumentClusterer:
         try:
             query_gpu = torch.from_numpy(query_embedding).to(self.device)
             
-            # Store all results with proper indices
             all_results = []  # List of (score, global_index) tuples
             
-            # Process in batches to avoid GPU memory issues
+            # Process in batches 
             for i in range(0, len(self.embeddings_array), batch_size):
                 batch_end = min(i + batch_size, len(self.embeddings_array))
                 batch_embeddings = torch.from_numpy(self.embeddings_array[i:batch_end]).to(self.device)
-                
-                # Compute similarities for this batch
+
                 batch_similarities = torch.matmul(batch_embeddings, query_gpu)
                 
                 # Convert to CPU and store with global indices
                 batch_scores = batch_similarities.cpu().numpy()
                 
-                # Add results with correct global indices
+                # Add results 
                 for j, score in enumerate(batch_scores):
                     global_idx = i + j
                     all_results.append((float(score), global_idx))
@@ -322,7 +248,7 @@ class OptimizedDocumentClusterer:
         if len(doc_ids) < num_clusters:
             num_clusters = len(doc_ids)
         
-        # Get embeddings for selected documents - improved mapping
+        # Get embeddings for selected documents 
         doc_indices = []
         valid_doc_ids = []
         valid_scores = []
@@ -449,7 +375,7 @@ class OptimizedDocumentClusterer:
                 "cluster_size": len(cluster_indices)
             })
         
-        # Handle HDBSCAN noise points
+        # HDBSCAN noise points
         noise_mask = labels == -1
         if np.any(noise_mask):
             noise_indices = np.where(noise_mask)[0]
@@ -489,7 +415,7 @@ class OptimizedDocumentClusterer:
             query_embedding = self.model.encode(query, convert_to_tensor=False, normalize_embeddings=True)
             query_embedding = query_embedding.astype(np.float32)
             
-            # Step 1: Retrieve top candidates
+            # Retrieve top candidates
             embedding_size_gb = self.embeddings_array.nbytes / (1024**3)
             
             if torch.cuda.is_available() and embedding_size_gb < 8:  # If reasonable GPU memory usage
@@ -503,7 +429,7 @@ class OptimizedDocumentClusterer:
             
             print(f"Retrieved {len(top_doc_ids)} candidates")
             
-            # Step 2: Clustering (if requested)
+            # Clustering 
             if method in ["kmeans", "hdbscan"]:
                 # Limit clustering to reasonable number of documents
                 cluster_candidates = min(500, len(top_doc_ids))
@@ -530,7 +456,7 @@ class OptimizedDocumentClusterer:
                 print("No results from clustering")
                 return pd.DataFrame()
             
-            # Step 3: Create DataFrame and join with text data
+            # Create DataFrame and join with text data
             print(f"Creating final results for {len(results)} documents...")
             
             # Create results dataframe
@@ -541,20 +467,15 @@ class OptimizedDocumentClusterer:
                 print("Mapping doc_ids for text joining...")
                 df['text_doc_id'] = df['doc_id'].apply(self._map_to_text_id)
                 
-                # Count successful mappings
                 mapped_count = df['text_doc_id'].isin(self.text_df.index).sum()
                 print(f"Successfully mapped {mapped_count}/{len(df)} doc_ids to text format")
                 
-                # Set text_doc_id as index for joining
                 df = df.set_index('text_doc_id')
-                
-                # Keep original doc_id as a column
+
                 df['original_doc_id'] = df['doc_id']
             else:
-                # No mapping needed, use doc_id directly
                 df = df.set_index('doc_id')
             
-            # Debug info
             print(f"Results columns: {df.columns.tolist()}")
             print(f"Results index (for joining): {df.index[:3].tolist()}")
             print(f"Text data shape: {self.text_df.shape}")
@@ -571,7 +492,7 @@ class OptimizedDocumentClusterer:
                 missing_ids = missing_text.index[:5].tolist()
                 print(f"Sample missing doc_ids: {missing_ids}")
             else:
-                print("✅ All documents successfully joined with text data!")
+                print("All documents successfully joined with text data!")
             
             # Sort by new_ranking and limit to k results
             merged_df = merged_df.sort_values('new_ranking').head(k)
@@ -589,116 +510,6 @@ class OptimizedDocumentClusterer:
             traceback.print_exc()
             return pd.DataFrame()
     
-    def verify_search_integrity(self, query: str, k: int = 10) -> Dict:
-        """Verify that search results preserve doc_ids correctly"""
-        print("=== VERIFYING SEARCH INTEGRITY ===")
-        
-        query_embedding = self.model.encode(query, convert_to_tensor=False, normalize_embeddings=True)
-        query_embedding = query_embedding.astype(np.float32)
-        
-        # Test both GPU and CPU methods with small k
-        embedding_size_gb = self.embeddings_array.nbytes / (1024**3)
-        
-        results = {}
-        
-        # Test CPU method
-        print("Testing CPU method...")
-        cpu_doc_ids, cpu_scores = self._chunked_similarity_search(query_embedding, k)
-        results['cpu'] = {
-            'doc_ids': cpu_doc_ids,
-            'scores': cpu_scores,
-            'valid_doc_ids': all(doc_id in self.doc_ids for doc_id in cpu_doc_ids),
-            'unique_doc_ids': len(set(cpu_doc_ids)) == len(cpu_doc_ids)
-        }
-        
-        # Test GPU method if available
-        if torch.cuda.is_available() and embedding_size_gb < 8:
-            print("Testing GPU method...")
-            gpu_doc_ids, gpu_scores = self._gpu_similarity_search(query_embedding, k)
-            results['gpu'] = {
-                'doc_ids': gpu_doc_ids,
-                'scores': gpu_scores,
-                'valid_doc_ids': all(doc_id in self.doc_ids for doc_id in gpu_doc_ids),
-                'unique_doc_ids': len(set(gpu_doc_ids)) == len(gpu_doc_ids)
-            }
-            
-            # Compare CPU vs GPU results
-            if len(cpu_doc_ids) > 0 and len(gpu_doc_ids) > 0:
-                # Check if top results are similar (they should be identical or very close)
-                top_3_cpu = set(cpu_doc_ids[:3])
-                top_3_gpu = set(gpu_doc_ids[:3])
-                overlap = len(top_3_cpu.intersection(top_3_gpu))
-                results['cpu_gpu_consistency'] = {
-                    'top_3_overlap': overlap,
-                    'score_diff': abs(cpu_scores[0] - gpu_scores[0]) if cpu_scores and gpu_scores else 0
-                }
-        
-        # Print detailed results
-        for method, data in results.items():
-            if method == 'cpu_gpu_consistency':
-                print(f"\nCPU vs GPU consistency:")
-                print(f"  Top 3 overlap: {data['top_3_overlap']}/3")
-                print(f"  Top score difference: {data['score_diff']:.6f}")
-            else:
-                print(f"\n{method.upper()} method:")
-                print(f"  Valid doc_ids: {data['valid_doc_ids']}")
-                print(f"  Unique doc_ids: {data['unique_doc_ids']}")
-                print(f"  Sample doc_ids: {data['doc_ids'][:3]}")
-                print(f"  Sample scores: {[f'{s:.4f}' for s in data['scores'][:3]]}")
-                
-                # Check for potential issues
-                if not data['valid_doc_ids']:
-                    invalid_ids = [doc_id for doc_id in data['doc_ids'] if doc_id not in self.doc_ids]
-                    print(f"  WARNING: Invalid doc_ids found: {invalid_ids[:5]}")
-                
-                if not data['unique_doc_ids']:
-                    print(f"  WARNING: Duplicate doc_ids found!")
-        
-        print("=== END INTEGRITY CHECK ===")
-        return results
-        """Inspect the data structure for debugging"""
-        print("=== DATA INSPECTION ===")
-        print(f"Embeddings: {len(self.embeddings_array)} documents")
-        print(f"Text data: {len(self.text_df)} documents")
-        print(f"Embeddings doc_ids type: {type(self.doc_ids[0]) if self.doc_ids else 'None'}")
-        print(f"Text data index type: {type(self.text_df.index[0]) if len(self.text_df) > 0 else 'None'}")
-        print(f"Sample embedding doc_ids: {self.doc_ids[:5]}")
-        print(f"Sample text doc_ids: {self.text_df.index[:5].tolist()}")
-        
-        # Check for overlap
-        embedding_ids_set = set(self.doc_ids)
-        text_ids_set = set(self.text_df.index)
-        overlap = embedding_ids_set.intersection(text_ids_set)
-        print(f"Overlapping doc_ids: {len(overlap)} out of {len(embedding_ids_set)} embeddings")
-        
-        if len(overlap) < len(embedding_ids_set):
-            missing_in_text = embedding_ids_set - text_ids_set
-            print(f"Doc_ids in embeddings but not in text: {len(missing_in_text)}")
-            print(f"Sample missing: {list(missing_in_text)[:5]}")
-        
-        print(f"Text data columns: {self.text_df.columns.tolist()}")
-        print("=== END INSPECTION ===")
-        
-        return {
-            "embeddings_count": len(self.embeddings_array),
-            "text_count": len(self.text_df),
-            "overlap_count": len(overlap),
-            "text_columns": self.text_df.columns.tolist()
-        }
-        """Get current memory usage statistics"""
-        embedding_size = self.embeddings_array.nbytes / (1024**3)
-        
-        gpu_info = "N/A"
-        if torch.cuda.is_available():
-            allocated = torch.cuda.memory_allocated() / (1024**3)
-            cached = torch.cuda.memory_reserved() / (1024**3)
-            gpu_info = f"Allocated: {allocated:.2f}GB, Cached: {cached:.2f}GB"
-        
-        return {
-            "embeddings_size_gb": embedding_size,
-            "num_documents": len(self.embeddings_array),
-            "gpu_memory": gpu_info
-        }
     
     def get_memory_usage(self):
         """Get current memory usage statistics"""
@@ -722,12 +533,10 @@ class OptimizedDocumentClusterer:
             torch.cuda.empty_cache()
         gc.collect()
 
-# Enhanced usage function with all your original functionality
+
 def the_function(query: str, k: int = 5, method: str = "hdbscan", 
                 embeddings_path: str = None, text_path: str = None, debug: bool = False):
-    """Enhanced version of your original the_function"""
     
-    # Use your original paths if not provided
     if embeddings_path is None or text_path is None:
         script_dir = os.path.dirname(os.path.abspath(__file__))
         repo_path = os.path.abspath(os.path.join(script_dir, "../.."))
@@ -742,30 +551,21 @@ def the_function(query: str, k: int = 5, method: str = "hdbscan",
     try:
         clusterer = OptimizedDocumentClusterer(embeddings_path, text_path)
         
-        # # Debug data structure if requested
-        # if debug:
-        #     data_info = clusterer.inspect_data()
-        #     print(f"Data inspection: {data_info}")
-        
-        # Print memory usage
+
         memory_info = clusterer.get_memory_usage()
         print(f"Memory usage: {memory_info}")
         
-        # Perform search and clustering
         results = clusterer.search_and_cluster(query, k=k, method=method, retrieval_k=1000)
         
-        # Verify results contain expected data
         if not results.empty:
             print(f"Results shape: {results.shape}")
             print(f"Results columns: {results.columns.tolist()}")
             
-            # Check if key columns exist
             expected_cols = ['new_ranking', 'similarity_score', 'cluster']
             missing_cols = [col for col in expected_cols if col not in results.columns]
             if missing_cols:
                 print(f"Warning: Missing expected columns: {missing_cols}")
             
-            # Check if text data was joined successfully
             text_cols = [col for col in results.columns if col not in expected_cols + ['init_ranking']]
             if text_cols:
                 print(f"Text columns joined: {text_cols}")
