@@ -16,19 +16,8 @@ from clustering_methods import HDBClustering, KMeansClustering, MiniBatchKMeansC
 from saving_and_loading import save_pickle_gz
 from load_docs import load_doc_data, load_doc_embeddings
 
-# Config
-SAMPLING_FRACTION = 1.0  # set between 0 and 1
-SKIP_LARGE_CATEGORIES = False
-STOP_WORDS_EXCLUDED = False
-PCA_ENABLED = True
-CLUSTERING_STRATEGY = 'mini_batch_kmeans' # kmeans or hdbscan or mini_batch_kmeans
-CLUSTERING_METRIC = 'cosine' # euclidean or cosine if using hdbscan - ONLY RELEVANT IF CLUSTERING STRATEGY hdbscan
-KMEANS_K = 8 # ONLY RELEVANT IF CLUSTERING STRATGY kmeans
-HPC_EXECUTION = True
-
-# Relevant if SKIP_LARGE_CATEGORIES is True
-LARGE_CATEGORY_CONST = 8000 # ONLY RELEVANT IF SKIP_LARGE_CATEGORIES
-PCA_VALUE = 0.95 # number of components or float between 0 and 1 indicating captured variance
+# Import config variables
+from config_load import *
 
 def compute_categories(docs: pd.DataFrame) -> Dict[str, Set[str]]:
     """
@@ -137,6 +126,7 @@ def compute_clustering(
         dict: Mapping of category → cluster label → list of document IDs.
     """
     clustering = dict()
+    num_categories = len(categories.keys())
     for ctr, (category, doc_ids_in_category) in enumerate(categories.items()):
         clustering[category] = defaultdict(list)
 
@@ -149,16 +139,14 @@ def compute_clustering(
         if STOP_WORDS_EXCLUDED and category in {"the", "is", "in", "and", "to", "a", "of", "that", "it", "on", "for", "with", "as", "was", "at", "by", "an"}:
            continue
         
-        if not HPC_EXECUTION:
-            print(f'{ctr:} {category}')
+        print(f'{ctr}/{num_categories}: {category}')
 
         docs_in_category = df_doc_emb.loc[list(doc_ids_in_category)]
         
         if PCA_ENABLED:
             embeddings = np.array(docs_in_category.embedding_pca.tolist())
         else:
-            embeddings = np.array(docs_in_category.embedding.tolist())
-        
+            embeddings = np.array(docs_in_category.embedding.tolist())        
         
         if len(embeddings) > 1:
             if clustering_method == 'hdbscan':
@@ -173,7 +161,15 @@ def compute_clustering(
                 clusters, num_clusters = KMeansClustering(doc_embeddings=embeddings, num_clusters=num_clusters)
             elif clustering_method == 'mini_batch_kmeans':
                 num_clusters = KMEANS_K if len(embeddings) >= KMEANS_K else max(2, int(math.sqrt(len(embeddings))))
-                clusters, num_clusters = MiniBatchKMeansClustering(doc_embeddings=embeddings, num_clusters=num_clusters)
+                clusters, num_clusters = MiniBatchKMeansClustering(
+                    doc_embeddings=embeddings, 
+                    num_clusters=num_clusters,
+                    batch_size=BATCH_SIZE,
+                    init_size=INIT_SIZE,
+                    max_iter=MAX_ITER,
+                    reassignment_ratio=REASSIGNMENT_RATIO,
+                    random_state=RANDOM_STATE
+                    )
             else:
                 raise Exception(f"Clustering method must be one of 'kmeans' or 'hdbscan', but is {clustering_method}")
             
@@ -281,27 +277,26 @@ if __name__ == "__main__":
     if HPC_EXECUTION:
         ##### THIS SECTION HAS BEEN INCLUDED FOR EXECUTION ON HPC CLUSTER ############################
 
-        # CHANGE THIS AS NEEDED
-
-        PWD = os.getcwd() # current working directory
-
-        CM = (
+        folder_name = (
+            "repr_"
+            f"CU={int(CUML)}_"
             f"CS={CLUSTERING_STRATEGY[:2]}_"
-            f"CM={CLUSTERING_METRIC[0]}_"
-            f"KK={KMEANS_K}"
-            f"SF={int(SAMPLING_FRACTION)}_"
+            f"SF={SAMPLING_FRACTION}_"
+            f"PCA={PCA_VALUE if PCA_ENABLED else 0}"
+            f"CM={CLUSTERING_METRIC[0] if CLUSTERING_STRATEGY == 'hdbscan' else 0}_"
+            f"KK={KMEANS_K if CLUSTERING_STRATEGY in ['kmeans', 'mini_batch_kmeans'] else 0}_"
             f"SLC={int(SKIP_LARGE_CATEGORIES)}_"
             f"SWE={int(STOP_WORDS_EXCLUDED)}_"
-            f"PCA={PCA_VALUE if PCA_ENABLED else 0}"
         )
 
-        path_to_repr_rel = f"data/repr_{CM}"
 
-        os.mkdir(path_to_repr_rel)
+        path_to_doc_emb = os.path.join(PATH_TO_ROOT, PATH_TO_EMB)
+        path_to_doc_data = os.path.join(PATH_TO_ROOT, PATH_TO_DATA)
+        path_to_representatives = os.path.join(PATH_TO_ROOT, PATH_TO_REPR, folder_name)
+        
+        print(path_to_representatives)
 
-        path_to_doc_data = os.path.join(PWD, "data/wikipedia/split-data-no-disambiguation")
-        path_to_doc_emb = os.path.join(PWD, "../new_embeddings")
-        path_to_representatives = os.path.join(PWD, path_to_repr_rel)
+        os.makedirs(path_to_representatives, exist_ok=True)
         ##############################################################################################
 
         sbert_static_load(

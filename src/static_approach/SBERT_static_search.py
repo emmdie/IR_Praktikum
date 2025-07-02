@@ -186,11 +186,11 @@ def rank(results_df: pd.DataFrame, query: str, df_doc_emb) -> pd.DataFrame:
     
     return results_df
 
-def add_doc_texts(results_df: pd.DataFrame, df_doc_data: pd.DataFrame) -> pd.DataFrame:
+def add_doc_texts_and_label(results_df: pd.DataFrame, df_doc_data: pd.DataFrame) -> pd.DataFrame:
     """
-    Join the result DataFrame with the document texts based on the document ID.
+    Join the result DataFrame with the document texts and labels based on the document ID.
     """
-    return results_df.join(df_doc_data.text)
+    return results_df.join(df_doc_data.text).join(df_doc_data.label)
 
 def sbert_static_search(
     query: str = "hammer",
@@ -229,7 +229,7 @@ def sbert_static_search(
     if search_results is None:
         return pd.DataFrame()
     else:
-        search_results = add_doc_texts(search_results, doc_data)
+        search_results = add_doc_texts_and_label(search_results, doc_data)
         return search_results
     
 

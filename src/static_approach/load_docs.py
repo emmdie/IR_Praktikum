@@ -31,7 +31,8 @@ def pandas_load_df_from_pickle(path):
     # Load pickle files
     pickle_files = load_pickle_files(path)
     
-    print(f"Loading these pickle files: {pickle_files}")
+    print(f"Loading these pickle files:")
+    print(*pickle_files, sep='\n')
     
     if not pickle_files:
         return None

@@ -4,3 +4,5 @@
 data/wikipedia/testdata/embedded/*.pkl.gzip
 data/test-data-martin/
 /src/static_approach/**/*.pkl*
+/data/static-approach/all_wiki/
+/data/static-approach/repr_small/
