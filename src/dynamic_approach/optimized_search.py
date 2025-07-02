@@ -315,7 +315,7 @@ class OptimizedDocumentClusterer:
             return self._chunked_similarity_search(query_embedding, k)
     
     def _cluster_documents(self, query_embedding: np.ndarray, doc_ids: List, scores: List, 
-                          method: str = "kmeans", num_clusters: int = 5) -> List[Dict]:
+                          method: str = "kmeans", num_clusters: int = 10) -> List[Dict]:
         """Cluster the top documents and select best from each cluster"""
         print(f"Clustering {len(doc_ids)} documents using {method}...")
         
@@ -405,7 +405,8 @@ class OptimizedDocumentClusterer:
             clusterer = cuHDBSCAN(
                 min_cluster_size=min_cluster_size,
                 min_samples=1,
-                cluster_selection_epsilon=0.2
+                cluster_selection_epsilon=0.2,
+                alpha=1.0
             )
             clusterer.fit(embeddings_gpu)
             return cp.asnumpy(clusterer.labels_)
