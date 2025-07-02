@@ -12,11 +12,11 @@ import pathlib
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
 
 from inverted_index import build_inverted_index
-from clustering_methods import HDBClustering, KMeansClustering, MiniBatchKMeansClustering
+from clustering_methods import HDBClustering, cuHDBClustering, KMeansClustering, cuKMeansClustering, MiniBatchKMeansClustering
 from saving_and_loading import save_pickle_gz
 from load_docs import load_doc_data, load_doc_embeddings
 
-# Import config variables
+# Config variables
 from config_load import *
 
 def compute_categories(docs: pd.DataFrame) -> Dict[str, Set[str]]:
@@ -63,12 +63,21 @@ def refine_clusters(
     first_iteration = True
 
     while num_clusters > min_clusters:
-        num_clusters, clusters = HDBClustering(
-            embeddings,
-            metric=metric,
-            cluster_selection_epsilon=cluster_selection_epsilon,
-            alpha=alpha
-        )
+        
+        if CUML:        
+            num_clusters, clusters = cuHDBClustering(
+                embeddings,
+                metric=metric,
+                cluster_selection_epsilon=cluster_selection_epsilon,
+                alpha=alpha
+            )
+        else:
+            num_clusters, clusters = HDBClustering(
+                embeddings,
+                metric=metric,
+                cluster_selection_epsilon=cluster_selection_epsilon,
+                alpha=alpha
+            )
 
         if not hpc_execution:
             print(f'Num clusters "{category}": {num_clusters}')
@@ -109,7 +118,6 @@ def refine_clusters(
 
     return clusters
 
-
 def compute_clustering(
         df_doc_emb: pd.DataFrame, 
         categories: Dict[str, Set[str]], 
@@ -130,7 +138,6 @@ def compute_clustering(
     for ctr, (category, doc_ids_in_category) in enumerate(categories.items()):
         clustering[category] = defaultdict(list)
 
-
         if SKIP_LARGE_CATEGORIES and len(doc_ids_in_category) > LARGE_CATEGORY_CONST:
             if not HPC_EXECUTION:
                 print(f'{ctr:} {category} SKIPPED')
@@ -146,7 +153,7 @@ def compute_clustering(
         if PCA_ENABLED:
             embeddings = np.array(docs_in_category.embedding_pca.tolist())
         else:
-            embeddings = np.array(docs_in_category.embedding.tolist())        
+            embeddings = np.array(docs_in_category.embedding.tolist())
         
         if len(embeddings) > 1:
             if clustering_method == 'hdbscan':
@@ -158,18 +165,15 @@ def compute_clustering(
                 )
             elif clustering_method == 'kmeans':
                 num_clusters = KMEANS_K if len(embeddings) >= KMEANS_K else max(2, int(math.sqrt(len(embeddings))))
-                clusters, num_clusters = KMeansClustering(doc_embeddings=embeddings, num_clusters=num_clusters)
+                
+                if CUML:
+                    clusters, num_clusters = cuKMeansClustering(doc_embeddings=embeddings, num_clusters=num_clusters)
+                else:
+                    clusters, num_clusters = KMeansClustering(doc_embeddings=embeddings, num_clusters=num_clusters)
+
             elif clustering_method == 'mini_batch_kmeans':
                 num_clusters = KMEANS_K if len(embeddings) >= KMEANS_K else max(2, int(math.sqrt(len(embeddings))))
-                clusters, num_clusters = MiniBatchKMeansClustering(
-                    doc_embeddings=embeddings, 
-                    num_clusters=num_clusters,
-                    batch_size=BATCH_SIZE,
-                    init_size=INIT_SIZE,
-                    max_iter=MAX_ITER,
-                    reassignment_ratio=REASSIGNMENT_RATIO,
-                    random_state=RANDOM_STATE
-                    )
+                clusters, num_clusters = MiniBatchKMeansClustering(doc_embeddings=embeddings, num_clusters=num_clusters)
             else:
                 raise Exception(f"Clustering method must be one of 'kmeans' or 'hdbscan', but is {clustering_method}")
             
@@ -289,14 +293,14 @@ if __name__ == "__main__":
             f"SWE={int(STOP_WORDS_EXCLUDED)}_"
         )
 
-
         path_to_doc_emb = os.path.join(PATH_TO_ROOT, PATH_TO_EMB)
         path_to_doc_data = os.path.join(PATH_TO_ROOT, PATH_TO_DATA)
         path_to_representatives = os.path.join(PATH_TO_ROOT, PATH_TO_REPR, folder_name)
         
         print(path_to_representatives)
-
+        
         os.makedirs(path_to_representatives, exist_ok=True)
+
         ##############################################################################################
 
         sbert_static_load(
