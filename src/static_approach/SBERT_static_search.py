@@ -24,7 +24,7 @@ HPC_TESTING = False
 # LOAD needed data
 # Default paths relative to project root
 DEFAULT_DOC_DATA_PATH = "data/wikipedia/testdata/raw"
-DEFAULT_DOC_EMB_PATH = "data/test-data-martin"
+DEFAULT_DOC_EMB_PATH = "data/wikipedia/testdata/embedded"
 DEFAULT_REPRESENTATIVES_PATH = "data/static-approach/testing/hdbscan" #/representatives-hpc/repr_w_stopwords"
 
 # Compute absolute paths at module import

@@ -9,7 +9,7 @@ import pandas as pd
 
 import matplotlib
 import matplotlib.pyplot as plt
-matplotlib.use('Qt5Agg')  
+
 
 from textual import on
 # Add project root to Python path
@@ -26,7 +26,7 @@ from textual.screen import ModalScreen
 from rich.text import Text
 from textual.message import Message
 
-from src.dynamic_approach.SBERT_dynamic_search import the_function
+from src.dynamic_approach.optimized_search import the_function
 from src.static_approach.SBERT_static_search import sbert_static_search
 
 class SearchTriggered(Message):
@@ -218,7 +218,7 @@ class SearchEngineFrontend(App):
         
         elif message.approach == "static":
             try:
-                results = sbert_static_search(query=message.query, num_docs_to_retrieve=5)
+                results = sbert_static_search(query=message.query, num_docs_to_retrieve=num_results)
             except Exception as e:
                 self.clear_results()
                 results_container: Widget = self.query_one("#results_container")
@@ -229,36 +229,6 @@ class SearchEngineFrontend(App):
         results_df = results
         self.populate_results_from_dict(results_df)
         
-    def run_search_with_viz(self, query: str, approach: str):
-        """Run search with visualization enabled"""
-        method = self.settings.get("clustering_method", "hdbscan")
-        num_results = self.settings.get("num_results", 5)
-        
-        if approach == "dynamic":
-            try:
-                # Import here to avoid circular imports
-                from src.dynamic_approach.SBERT_dynamic_search import the_function
-                # Run with visualization enabled
-                results = the_function(query=query, k=num_results, method=method, show_viz=True)
-                
-                # Update status
-                self.clear_results()
-                results_container = self.query_one("#results_container")
-                info_message = Static(f"Visualization opened for query: '{query}' using {approach} approach", classes="info-message")
-                results_container.mount(info_message)
-                
-            except Exception as e:
-                self.clear_results()
-                results_container = self.query_one("#results_container")
-                error_field = Static(f"Visualization error: {str(e)}", classes="error-message")
-                results_container.mount(error_field)
-        else:
-            # Handle static approach visualization if needed
-            self.clear_results()
-            results_container = self.query_one("#results_container")
-            info_message = Static("Visualization not yet implemented for static approach", classes="info-message")
-            results_container.mount(info_message)
-            
     def clear_results(self) -> None:
         """Clear all results from the UI"""
         results_container: Widget = self.query_one("#results_container")
@@ -277,7 +247,6 @@ class SearchBar(HorizontalGroup):
         yield Input(placeholder="Enter search term...", id="search_input", classes="search_input")
         yield Button("Search 🔎", id="start", variant="success")
         yield Select(((line, line) for line in LINES), value="dynamic", id="approach_select")
-        yield Button("Viz 📊", id="viz", variant="warning", classes="viz-button")
         yield Button("Set ⚙️", id="settings", variant="primary", classes="settings-button")
         
     def on_button_pressed(self, event: Button.Pressed) -> None:
@@ -289,12 +258,7 @@ class SearchBar(HorizontalGroup):
             app = self.app
             app.action_show_settings()
             
-        elif event.button.id == "viz":
-            # Trigger visualization of last search
-            app = self.app
-            app.run_search_with_viz(query_input.value, self.selected_approach)
-            
-            
+       
     @on(Select.Changed)
     def select_changed(self, event: Select.Changed) -> None:
         # Fixed variable name
