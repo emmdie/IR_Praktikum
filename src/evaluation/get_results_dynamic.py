@@ -1,5 +1,5 @@
 import pandas as pd
-from src.dynamic_approach.SBERT_dynamic_search import the_function
+from src.dynamic_approach.optimized_search import the_function
 
 # Load the queries 
 queries = pd.read_json("data/queries-and-eval/queries.jsonl", lines=True)
