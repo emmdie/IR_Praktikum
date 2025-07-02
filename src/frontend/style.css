@@ -5,10 +5,9 @@
 
 .result-frame {
     margin: 1;
-    padding: 1;
     border: solid $primary;
     background: $surface;
-    min-height: 3;
+    height: 10;
 }
 
 .result-header {
@@ -53,7 +52,7 @@
 
 /* Settings Modal Styles */
 #settings_dialog {
-    width: 60;
+    width: 75;
     height: 35;
     background: $surface;
     border: thick $primary;

@@ -267,7 +267,7 @@ class SearchBar(HorizontalGroup):
         if app.settings.get("debug_mode"):
             print(f"Approach selection changed to: {self.selected_approach}")
 
-class ResultField(Vertical):
+class ResultField(HorizontalGroup):
     def __init__(self, original_ranking: int, new_ranking: int, cluster: str, doc_id: str, label: str, text: str, similarity_score: float = 0.0, show_scores: bool = True) -> None:
         super().__init__()
         self.original_ranking = original_ranking
