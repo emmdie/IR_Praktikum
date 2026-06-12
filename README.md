@@ -27,6 +27,10 @@ For a detailed description of the methodology, experiments, and results, see the
 ## 📝 Project Overview
 
 This repository contains the implementation of a search engine designed to **diversify search results for homonym queries** (e.g., "jaguar" as a car or animal). By combining transformer-based semantic encoding (SBERT) with both static and dynamic diversification strategies, the system ensures users receive results covering multiple meanings of ambiguous queries.
+It also provides a terminal based UI to configure settings, clustering methods and view results:
+<img width="2926" height="1764" alt="image" src="https://github.com/user-attachments/assets/55cd9d1a-4a76-4f0f-b550-965ba88b770b" />
+<img width="2928" height="1766" alt="image" src="https://github.com/user-attachments/assets/f38de349-5b90-4135-a181-24035c8fea9e" />
+
 
 ---
 
@@ -97,6 +101,8 @@ graph TD
 
 > **Key Finding:**  
 > Both static and dynamic approaches increased the diversity of search results for homonym queries, with dynamic clustering providing the highest heterogeneity without sacrificing relevance.
+<img width="1115" height="340" alt="image" src="https://github.com/user-attachments/assets/47e10a08-daaf-4902-93bf-56ccce553763" />
+
 
 ---
 
