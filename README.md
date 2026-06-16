@@ -1,5 +1,6 @@
 ## 🚀 Diversifying Search Results for Homonym Queries via Transformer Architectures
-This project presents a novel search engine that delivers *diverse* and *relevant* results for homonym queries, leveraging state-of-the-art transformer architectures and semantic clustering. Developed at TU Dresden, it demonstrates advanced skills in NLP, information retrieval, and practical system design.
+This project presents a novel search engine that delivers *diverse* and *relevant* results for homonym queries, leveraging state-of-the-art transformer architectures and semantic clustering. 
+Compared to classical search engines focusing on relevance, this one focuses on giving the broadest range of meanings for a query with multiple possible meanings, e.g. "Fish" referring to a [command line shell](https://fishshell.com/), [animals](https://en.wikipedia.org/wiki/Fish) or a [1970s show starring Abe Vigoda as Detective Phillip Fish](https://en.wikipedia.org/wiki/Fish_(American_TV_series))
 
 ---
 
