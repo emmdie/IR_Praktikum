@@ -11,21 +11,6 @@ For a detailed description of the methodology, experiments, and results, see the
 
 ---
 
-### Table of Contents
-
-- [Project Overview](#project-overview)
-- [Research Problem & Motivation](#research-problem--motivation)
-- [Technical Approach](#technical-approach)
-  - [Static Diversification](#static-diversification)
-  - [Dynamic Diversification](#dynamic-diversification)
-- [System Architecture](#system-architecture)
-- [Tech Stack](#tech-stack)
-- [Evaluation & Results](#evaluation--results)
-- [Dataset](#dataset)
-- [Team & Credits](#team--credits)
-
----
-
 ## 📝 Project Overview
 
 This repository contains the implementation of a search engine designed to **diversify search results for homonym queries** (e.g., "jaguar" as a car or animal). By combining transformer-based semantic encoding (SBERT) with both static and dynamic diversification strategies, the system ensures users receive results covering multiple meanings of ambiguous queries.
